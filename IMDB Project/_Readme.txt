@@ -1,0 +1,1 @@
+Build the staging database and load it. Instructions/tools are in the SSIS project.
