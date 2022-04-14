@@ -1,6 +1,6 @@
 
 CREATE TABLE [Imdb].[Profession](
-	[ProfessionName] [varchar](100) NOT NULL,
+	[ProfessionName] [VARCHAR](100) NOT NULL,
  CONSTRAINT [PKProfession] PRIMARY KEY CLUSTERED 
 (
 	[ProfessionName] ASC

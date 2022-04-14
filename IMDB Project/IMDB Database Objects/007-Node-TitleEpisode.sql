@@ -5,9 +5,10 @@ GO
 
 SET QUOTED_IDENTIFIER ON
 GO
+--DROP TABLE [Imdb].[TitleEpisode]
 
 CREATE TABLE [Imdb].[TitleEpisode](
-	[TitleId] [varchar](10) NOT NULL,
+	[TitleId] int NOT NULL CONSTRAINT FKTitleEpisode$Ref$Title REFERENCES Imdb.Title(TitleId),
 	[SeasonNumber] [int] NOT NULL,
 	[EpisodeNumber] [int] NOT NULL,
  CONSTRAINT [PKTitleEpisode] PRIMARY KEY CLUSTERED 

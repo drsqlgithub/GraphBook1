@@ -1,11 +1,10 @@
-SELECT Person.PrimaryName, Person.PersonId, TitleType, Title.Name, Person2.PrimaryName, Person2.PersonId
+SELECT Person.PrimaryName, TitleType, Title.Name, Person2.PrimaryName
 FROM  Imdb.Person, 
 	  Imdb.ContributedTo AS ContributedTo, Imdb.Title AS Title, 
 	  Imdb.ContributedTo AS ContributedTo2, Imdb.Person AS Person2
 WHERE MATCH(Person-(ContributedTo)->Title<-(ContributedTo2)-Person2)
   AND Person.PrimaryName = 'Frank Cardillo'
 
-  --ran 9 hours, killed it, it ended in seconds... but DID NOT fill up tempdb this time
 WITH baseRows AS (
 SELECT Person.PrimaryName + '->' + 
        STRING_AGG(CONCAT(Title.Name,'->',Person2.PrimaryName), '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
@@ -15,25 +14,20 @@ FROM  Imdb.Person AS Person,
 	  Imdb.Title FOR PATH AS Title, 
 	  Imdb.ContributedTo FOR PATH AS ContributedTo, 
 	  Imdb.ContributedTo FOR PATH AS ContributedTo2
-WHERE MATCH(SHORTEST_PATH(Person(-(ContributedTo)->Title<-(ContributedTo2)-Person2){1,7}))
-  AND Person.PrimaryName = 'Frank Sinatra'
+WHERE MATCH(SHORTEST_PATH(Person(-(ContributedTo)->Title<-(ContributedTo2)-Person2)+))
+  AND Person.PrimaryName = 'Frank Cardillo'
 )
 SELECT *
 FROM   BaseRows
-WHERE  ConnectedToAccountHandle = 'Frank Cardillo';
+WHERE  ConnectedToAccountHandle = 'Kevin Bacon'
 
-WITH BaseRows AS(
-SELECT Person.PrimaryName AS FromPerson, WorkedWith.TitleId,  Person2.PrimaryName AS ToPerson
+SELECT Person.PrimaryName, WorkedWith.TitleId,  Person2.PrimaryName
 FROM  Imdb.Person AS Person, 
 	  Imdb.WorkedWith AS WorkedWith, 
 	  Imdb.Person AS Person2
 WHERE MATCH(Person-(WorkedWith)->Person2)
   AND Person.PrimaryName = 'Frank Cardillo'
-)
-SELECT FromPerson, title.Name, BaseRows.ToPerson
-FROM   BaseRows
-		JOIN Imdb.Title
-			ON Title.TitleId = BaseRows.TitleId;
+
 
 WITH baseRows AS (
 SELECT Person.PrimaryName + '->' + 
@@ -44,7 +38,7 @@ FROM  Imdb.Person AS Person,
 	  Imdb.WorkedWith FOR PATH AS WorkedWith
 WHERE MATCH(SHORTEST_PATH(Person(-(WorkedWith)->Person2)+))
   --AND Person.PrimaryName = 'Frank Cardillo'
-  --AND Person.PrimaryName = 'Frank Sinatra'
+  AND Person.PrimaryName = 'Frank Sinatra'
 )
 SELECT *
 FROM   BaseRows
@@ -114,14 +108,3 @@ FROM   Imdb.ContributedTo
 SELECT COUNT(*) 
 FROM   Imdb.Title
 
-
------------
-10756900
-
------------
-43312922
-
------------
-7668281
-
-shutdown

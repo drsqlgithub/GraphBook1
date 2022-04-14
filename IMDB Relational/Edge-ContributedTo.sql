@@ -8,31 +8,31 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 CREATE TABLE [Imdb].[ContributedTo](
-	[ContributionType] [nvarchar](100) NULL,
-	CONSTRAINT EC_ContributedTo CONNECTION (imdb.Person TO Imdb.Title) ON DELETE NO ACTION,
- CONSTRAINT [AKContributedTo] UNIQUE NONCLUSTERED 
+	FromId INT NOT null,
+	ToId INT NOT null,
+	[ContributionType] [NVARCHAR](100) NOT NULL,
+	
+ CONSTRAINT [PKContributedTo] PRIMARY KEY
 (
-	$from_id,
-	$to_id,
+	FromId ,
+	ToId,
 	[ContributionType] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 )
-AS EDGE  WITH (DATA_COMPRESSION = PAGE)
+WITH (DATA_COMPRESSION = PAGE)
 GO
 
-CREATE INDEX fromTo ON Imdb.ContributedTo ($from_id, $to_id)
-CREATE INDEX ToFrom ON Imdb.ContributedTo ($to_id, $from_id) include (ContributionType)
+CREATE INDEX ToFrom ON Imdb.ContributedTo (ToId, FromId) include (ContributionType)
 GO
 
 CREATE OR ALTER VIEW IMDBInterface.ContributedTo_Person_to_Title
 AS
-SELECT Person.PersonId AS PersonId, 
-	   TitleId,
-	   ContributionType
-FROM Imdb.Person,
-     Imdb.ContributedTo,
-     Imdb.Title 
-WHERE MATCH(Person-(ContributedTo)->Title);
+SELECT Person.PersonNumber, Title.TitleNumber, ContributedTo.ContributionType
+FROM   imdb.Person
+		JOIN imdb.ContributedTo
+			ON ContributedTo.FromId = ContributedTo.FromId
+		JOIN Imdb.Title
+			ON ContributedTo.ToId = Title.TitleId
 GO
 
 CREATE OR ALTER TRIGGER IMDBInterface.ContributedTo_Person_to_Title$InsertTrigger
@@ -43,13 +43,12 @@ SET NOCOUNT ON;
 --note, to keep it simple, only including the insert statement. Could 
 --use more error handling for a production version of the trigger
  BEGIN 
-  INSERT INTO Imdb.ContributedTo($From_id, $To_id,ContributionType)
-  SELECT Person.$node_id, Title.$node_id, Inserted.ContributionType
+  INSERT INTO Imdb.ContributedTo(FromId, ToId,ContributionType)
+  SELECT Person.PersonId, Title.TitleId, Inserted.ContributionType
   FROM Inserted
        JOIN Imdb.Person
-           ON Person.PersonId = inserted.PersonId
+           ON Person.PersonNumber = inserted.PersonNumber
        JOIN Imdb.Title
-           ON Title.TitleId = inserted.TitleId
+           ON Title.TitleNumber = inserted.TitleNumber
  END;
 GO
-

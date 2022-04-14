@@ -1,0 +1,25 @@
+--DROP TABLE IF EXISTS imdb.Title
+GO
+/****** Object:  Table [Imdb].[Title]    Script Date: 3/3/2021 6:25:30 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [Imdb].[Title](
+	TitleId INT NOT NULL IDENTITY(1,1),
+	TitleTag [varchar](10) NOT NULL,
+	[TitleType] [varchar](20) NOT NULL,
+	[Name] [nvarchar](500) NOT NULL,
+	[StartYear] [int] NULL,
+ CONSTRAINT [PKTitle] PRIMARY KEY CLUSTERED 
+(
+	[TitleId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+)
+AS NODE -- WITH (DATA_COMPRESSION = PAGE)
+GO
+
+CREATE UNIQUE INDEX TitleTag ON imdb.title(TitleTag);
+CREATE INDEX Name ON imdb.title(Name);
