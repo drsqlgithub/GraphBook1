@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30309.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{159641D6-6404-4A2A-AE62-294DE0FE8301}") = "ImportIMDB", "ImportIMDB\ImportIMDB.dtproj", "{E9390B44-6BCA-467A-9EBB-0783E4E4D636}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Development|Default = Development|Default
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E9390B44-6BCA-467A-9EBB-0783E4E4D636}.Development|Default.ActiveCfg = Development
+		{E9390B44-6BCA-467A-9EBB-0783E4E4D636}.Development|Default.Build.0 = Development
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A8877308-1132-4FC4-A956-9448A117FBBD}
+	EndGlobalSection
+EndGlobal
