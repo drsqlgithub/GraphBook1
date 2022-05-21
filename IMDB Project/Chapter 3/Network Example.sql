@@ -15,6 +15,7 @@ GO
 --	PersonId int identity,
 --	FirstName nvarchar(100) NULL,
 --	LastName  nvarchar(100) NOT NULL,
+--	Name as (CONCAT(FirstName+' ',LastName)),
 --	Value int NOT NULL CONSTRAINT DFLTPerson_Value DEFAULT(1),
 --	CONSTRAINT AKPerson UNIQUE (FirstName,LastName)
 --) as NODE;
@@ -119,14 +120,14 @@ select (select $node_id from Network.Person where FirstName = 'Day' and LastName
 select *
 from   Network.ProgramsWith
 
-select CONCAT(Person.FirstName,' ', Person.LastName) as Person, 
-		CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName) as Follows
+select Person.Name as PersonName, 
+	   FollowedPerson.Name as FollowedPersonName
 from   Network.Person, Network.Follows, Network.Person as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(Person-(Follows)->FollowedPerson)
 
- select CONCAT(Person.FirstName,' ', Person.LastName) as Person, 
-		CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName) as FollowedBy
+ select Person.Name as Person, 
+		FollowedPerson.Name as FollowedBy
 from   Network.Person, Network.Follows, Network.Person as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(Person<-(Follows)-FollowedPerson)
@@ -135,21 +136,20 @@ go
 
 
 
- select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
+ select Person.Name as Person,
 		--can't just do this
-		CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName) as Follows
+		FollowedPerson.Name as Follows
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
  /*
  Msg 13961, Level 16, State 1, Line 3
-The alias or identifier 'FollowedPerson.FirstName' cannot be used in the select list, order by, group by, or having context.
-Msg 13961, Level 16, State 1, Line 3
-The alias or identifier 'FollowedPerson.LastName' cannot be used in the select list, order by, group by, or having context.
+The alias or identifier 'FollowedPerson.Name' cannot be used in the select list, order by, group by, or having context.
 */
 go
- select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
+--showing how you can do LAST_VALUE to multiple columns
+ select Person.Name as Person,
 		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),
 		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
@@ -157,41 +157,36 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
 
- select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
+ select Person.Name as Person,
 		CONCAT(
 		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson
+		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson2
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH)
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
 
 
-select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 		SUM(FollowedPerson.Value) WITHIN GROUP (GRAPH PATH) as SumNodeValues,
 		--NOTE: Figure out why this is equal. More are being included or not enoiugh
 		SUM(Follows.Value) WITHIN GROUP (GRAPH PATH) as SumEdgeValues
@@ -199,17 +194,17 @@ from   Network.Person as Person, Network.Follows for path as Follows, Network.Pe
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
- select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
+  select Person.Name as Person,
 		CONCAT(
 		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
 		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
 		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 		SUM(FollowedPerson.Value) WITHIN GROUP (GRAPH PATH) as SumNodeValues,
 		--NOTE: Figure out why this is equal. More are being included or not enoiugh
 		SUM(Follows.Value) WITHIN GROUP (GRAPH PATH) as SumEdgeValues,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName, ' Node:',FollowedPerson.Value), '->') WITHIN GROUP (GRAPH PATH),
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName, ' EdgeValue:',Follows.Value), '->') WITHIN GROUP (GRAPH PATH)
+		STRING_AGG(CONCAT(FollowedPerson.Name, ' Node:',FollowedPerson.Value), '->') WITHIN GROUP (GRAPH PATH),
+		STRING_AGG(CONCAT(FollowedPerson.Name, ' EdgeValue:',Follows.Value), '->') WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
@@ -218,11 +213,9 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
  --fetch the edge and the next node. So aggregates do not include the starting point
 
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH)
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
@@ -231,22 +224,18 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  
 
 --show everyone linked at any level, along with their path
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+))
 
  --show everyone linked at level 1 or 2, along with their path
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person,
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
@@ -255,18 +244,16 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
 
  --show the people that have programming language connections
- select person.firstname, person.lastName, programmingLanguage.name
+ select person.name as PersonName, programmingLanguage.name as ProgrammingLanguage
  from   Network.Person, Network.ProgramsWIth, Network.ProgrammingLanguage
  where match(person-(ProgramsWith)->ProgrammingLanguage)
 
 
  --fred rick drops out because he does not have a programming language link
-   select CONCAT(Person.FirstName,' ', Person.LastName) as Person, 
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		ProgrammingLanguage.Name,
-		CONCAT(Person.FirstName,' ', Person.LastName) + '->' +  STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH)
+		CONCAT(Person.FirstName,' ', Person.LastName) + '->' +  STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson,
 		Network.ProgramsWith as ProgramsWith, Network.ProgrammingLanguage 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
@@ -276,16 +263,15 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
  --Now we are finding someone that we are connected to at any level
  --that programs in C++
-  select CONCAT(Person.FirstName,' ', Person.LastName) as Person, 
-		CONCAT(
-		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),' ',
-		LAST_VALUE(FollowedPerson.LastName) WITHIN GROUP (GRAPH PATH)) as ConnectedPerson,
+  select Person.Name as Person,
+		LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		ProgrammingLanguage.Name,
-		CONCAT(Person.FirstName,' ', Person.LastName) + '->' +  STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH)
+		Person.Name, + '->' +  STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH)
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson,
 		Network.ProgramsWith as ProgramsWith, Network.ProgrammingLanguage 
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+) AND LAST_NODE(FollowedPerson)-(ProgramsWith)->ProgrammingLanguage)
+ and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+) 
+                    AND LAST_NODE(FollowedPerson)-(ProgramsWith)->ProgrammingLanguage)
  and  ProgrammingLanguage.Name  = 'C++'
 
 
@@ -306,8 +292,7 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
 
 --multiple match conditions, done 3 different ways
-select Concat(Person.FirstName, ' ', Person.LastName) as Person,
-       Concat(Person2.FirstName, ' ', Person2.LastName) as Person2,
+  select Person.Name as Person, Person2.Name as Person2,
 	   ProgrammingLanguage.Name
 from   Network.Person as Person, 
        Network.Person as Person2,
@@ -319,8 +304,7 @@ where Match(Person-(ProgramsWith)->ProgrammingLanguage<-(ProgramsWith2)-Person2)
  and person2.personId <> Person.personId
 order by 1
 
-select Concat(Person.FirstName, ' ', Person.LastName) as Person,
-       Concat(Person2.FirstName, ' ', Person2.LastName) as Person2,
+  select Person.Name as Person, Person2.Name as Person2,
 	   ProgrammingLanguage.Name
 from   Network.Person as Person, 
        Network.Person as Person2,
@@ -332,8 +316,7 @@ where  Match(Person-(ProgramsWith)->ProgrammingLanguage)
    and person2.personId <> Person.personId
 ORDER BY 1
 
-select Concat(Person.FirstName, ' ', Person.LastName) as Person,
-       Concat(Person2.FirstName, ' ', Person2.LastName) as Person2,
+  select Person.Name as Person, Person2.Name as Person2,
 	   ProgrammingLanguage.Name
 from   Network.Person as Person, 
        Network.Person as Person2,
@@ -346,17 +329,17 @@ where  Match(Person-(ProgramsWith)->ProgrammingLanguage
 ORDER BY 1
 
 
+  select FromPerson.Name as FromPerson1,
 
-select Concat(FromPerson.FirstName,' ',FromPerson.LastName),
-		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 
 
- LAST_VALUE(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName)) WITHIN GROUP (GRAPH PATH) AS lastnode1,
+ LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) AS lastnode1,
 	   
-       CONCAT(FromPerson2.FirstName,' ',FromPerson2.LastName),
- 		STRING_AGG(CONCAT(FollowedPerson2.FirstName,' ',FollowedPerson2.LastName), '->') WITHIN GROUP (GRAPH PATH),
+      FromPerson2.Name,
+ 		STRING_AGG(FollowedPerson2.Name, '->') WITHIN GROUP (GRAPH PATH),
 
- LAST_VALUE(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName))
+ LAST_VALUE(FollowedPerson.Name)
       WITHIN GROUP (GRAPH PATH) AS lastnode1
 	  ,*
 
