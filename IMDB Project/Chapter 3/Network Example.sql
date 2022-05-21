@@ -347,3 +347,27 @@ ORDER BY 1
 
 
 
+select Concat(FromPerson.FirstName,' ',FromPerson.LastName),
+		STRING_AGG(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName), '->') WITHIN GROUP (GRAPH PATH),
+
+
+ LAST_VALUE(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName)) WITHIN GROUP (GRAPH PATH) AS lastnode1,
+	   
+       CONCAT(FromPerson2.FirstName,' ',FromPerson2.LastName),
+ 		STRING_AGG(CONCAT(FollowedPerson2.FirstName,' ',FollowedPerson2.LastName), '->') WITHIN GROUP (GRAPH PATH),
+
+ LAST_VALUE(CONCAT(FollowedPerson.FirstName,' ',FollowedPerson.LastName))
+      WITHIN GROUP (GRAPH PATH) AS lastnode1
+	  ,*
+
+from   Network.Person as FromPerson,
+		Network.Person as FromPerson2,
+       Network.Person FOR PATH as FollowedPerson,
+	   Network.Person FOR PATH as FollowedPerson2,
+	   Network.Follows FOR PATH AS Follows,
+	   Network.Follows FOR PATH AS Follows2
+WHERE MATCH(SHORTEST_PATH(FromPerson(-(Follows)->FollowedPerson)+)	
+  AND SHORTEST_PATH(FromPerson2(-(Follows2)->FollowedPerson2)+)
+  and last_node(FollowedPerson) = Last_node(FollowedPerson2)) --this joins mulitple paths
+  and FromPerson.FirstName = 'Day' and FromPerson.LastName = 'Vid'
+  and FromPerson2.FirstName = 'Lou' and FromPerson2.LastName = 'Iss'
