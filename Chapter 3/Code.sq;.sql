@@ -130,7 +130,20 @@ $edge_id_3E64B3D47C09432595C25D1FB2146A35
  ----------------------------------------------------------
  {"type":"node","schema":"Network","table":"Person","id":5}
 
+ --you also can do this (first clear the table, as we have not protected
+ --against duplication yet, which I will show later)
+ truncate table Network.Follows --using truncate so the id values are
+								--reset, just for clarity in writing
+								--no need to do this in real use
 
+ insert into Network.Follows($from_id, $to_id)
+ values ('{"type":"node","schema":"Network","table":"Person","id":0}',
+         '{"type":"node","schema":"Network","table":"Person","id":5}')
+
+--note that these items are values you can directly enter, but they are not the actual values that are stored.
+
+--later in this (or next, depending on how large this chapter is) chapter, I will show you how you can use this format to your advantage when loading data from an outside source.
+--i will also demonstrate how things are implemented internally, which is really useful especially when dealing with errors
 
 --then the rest of the rows
 insert into Network.Follows($From_id, $To_id)
@@ -165,6 +178,8 @@ union all
 select (select $node_id from Network.Person where FirstName = 'Day' and LastName = 'Vid'),
 	   (select $node_id from Network.Person where FirstName = 'WIll' and LastName = 'Iam')
 
+--the following query is something you rarely want to do (joining on the internal values directly). But this query is directly analagous to what our simplest graph query will do.
+
 SELECT Person.Name as PersonName, 
 	   FollowedPerson.Name as FollowedPersonName
 from   Network.Person
@@ -187,9 +202,9 @@ Will Iam             Fred Rick
 Fred Rick            Val Erry
 Day Vid              Will Iam
 
-This will match all the lines in Figure 1
+This will match all the directed edge lines in Figure 1
 
---briefly explaing the basic MATCH operator
+--briefly explaing the basic MATCH operator, and how this query is the way it works
 */
 select cast(Person.Name as nvarchar(20)) as PersonName, 
 	   FollowedPerson.Name as FollowedPersonName
@@ -211,3 +226,68 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss' --added
  Lou Iss              Will Iam
  Lou Iss              Val Erry
  */
+
+ --to find the parents of a row,  just reverse the arrow in the MATCH operator:
+
+ select Person.Name as Person, 
+		FollowedPerson.Name as FollowedBy
+from   Network.Person, Network.Follows, Network.Person as FollowedPerson
+where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
+ and   MATCH(Person<-(Follows)-FollowedPerson)
+
+ --starting at any given point of the graph is something that will be used very frequently in the example code, particularly to find the child rows of a node, often to count or sum their data.
+
+
+
+--you can do more than one match statement together. To make this easier, I am going to add a new node and edge to the graph for programming language like seen in Figure 2
+
+ --add figure 2
+
+ CREATE  table Network.ProgrammingLanguage
+(
+	Name nvarchar(30) NOT NULL
+) as NODE;
+
+create table Network.ProgramsWith
+AS EDGE;
+
+--load the nodes
+Insert Into Network.ProgrammingLanguage (Name)
+VALUES ('C++'),('T-SQL'),('Fortran');
+
+--then load some data
+
+--just like before I will add rows like this:
+Insert into Network.ProgramsWith($from_id, $to_id)
+select (select $node_id 
+		from Network.Person 
+		where FirstName = 'Lou' 
+		  and LastName = 'Iss') as from_id,
+	   (select $node_id 
+	   from Network.ProgrammingLanguage 
+	   where Name = 'T-SQL') as to_id;
+
+--the rest is avaiable in the download
+Insert into Network.ProgramsWith($from_id, $to_id)
+select (select $node_id from Network.Person where FirstName = 'Val' and LastName = 'Erry'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'T-SQL')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'Val' and LastName = 'Erry'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'Fortran')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'Lee' and LastName = 'Roy'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'T-SQL')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'Lee' and LastName = 'Roy'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'Fortran')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'WIll' and LastName = 'Iam'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'Fortran')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'Joe' and LastName = 'Seph'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'C++')
+UNION ALL
+select (select $node_id from Network.Person where FirstName = 'Day' and LastName = 'Vid'),
+	   (select $node_id from Network.ProgrammingLanguage where Name = 'T-SQL')
+GO
+
