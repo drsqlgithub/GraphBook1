@@ -3,7 +3,6 @@
 USE TestGraph;
 GO
 
-
 --/* Network */
 --if schema_id('Network') is null
 --	exec ('CREATE SCHEMA Network');
