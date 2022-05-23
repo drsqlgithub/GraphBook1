@@ -240,7 +240,7 @@ from   Network.Person as Person, Network.Follows for path as Follows, Network.Pe
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,2})) --here
 
-
+ **
 
  --show the people that have programming language connections
  select person.name as PersonName, programmingLanguage.name as ProgrammingLanguage
