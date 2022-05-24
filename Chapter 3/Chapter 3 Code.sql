@@ -29,6 +29,7 @@ create table Network.Follows
 (Value int NOT NULL 
 	CONSTRAINT DFLTFollows_Value DEFAULT(1))
 AS EDGE;
+GO
 
 --listing nodes and edges
 select object_schema_name(object_id) as schema_name,
@@ -115,11 +116,16 @@ select (select $node_id
 	    from Network.Person 
 		where FirstName = 'Joe' 
 		 and LastName = 'Seph') as to_id
+GO
 
 --looking at that data, you can see:
 select *
 from   Network.Follows
+GO
+
 /*
+--note your column names will almost certainly differ and or id values too.
+
 $edge_id_3E64B3D47C09432595C25D1FB2146A35                  
 -----------------------------------------------------------
 {"type":"edge","schema":"Network","table":"Follows","id":0}
@@ -179,6 +185,7 @@ select (select $node_id from Network.Person where FirstName = 'Fred' and LastNam
 union all
 select (select $node_id from Network.Person where FirstName = 'Day' and LastName = 'Vid'),
 	   (select $node_id from Network.Person where FirstName = 'WIll' and LastName = 'Iam')
+GO
 
 --the following query is something you rarely want to do (joining on the internal values directly). But this query is directly analagous to what our simplest graph query will do.
 
@@ -213,6 +220,7 @@ select cast(Person.Name as nvarchar(20)) as PersonName,
 	   FollowedPerson.Name as FollowedPersonName
 from   Network.Person, Network.Follows, Network.Person as FollowedPerson
 where  MATCH(Person-(Follows)->FollowedPerson)
+GO
 --same output, probably sorted differentl
 
 --note too that you can't use ANY ANSI style joins in the query... Not even the equivalent CROSS JOIN for the commas.
@@ -221,7 +229,7 @@ select cast(Person.Name as nvarchar(20)) as PersonName,
 	   FollowedPerson.Name as FollowedPersonName
 from   Network.Person CROSS JOIN Network.Follows CROSS JOIN Network.Person as FollowedPerson
 where  MATCH(Person-(Follows)->FollowedPerson)
-
+GO
 /*
 Msg 13920, Level 16, State 1, Line 221
 Identifier 'Follows' in a MATCH clause is used with a JOIN clause or APPLY operator. JOIN and APPLY are not supported with MATCH clauses.
@@ -230,10 +238,7 @@ Identifier 'Person' in a MATCH clause is used with a JOIN clause or APPLY operat
 Msg 13920, Level 16, State 1, Line 221
 Identifier 'FollowedPerson' in a MATCH clause is used with a JOIN clause or APPLY operator. JOIN and APPLY are not supported with MATCH clauses.
 */
-select cast(Person.Name as nvarchar(20)) as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName
-from   Network.Person, Network.Follows, Network.Person as FollowedPerson
-where  MATCH(Person-(Follows)->FollowedPerson)
+
 
 --All joins to fetch extra information will need to be done like this
 
@@ -268,8 +273,8 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss' --added
 
  --to find the parents of a row,  just reverse the arrow in the MATCH operator:
 
-select FollowedPerson.Name as Person
-       Person.Name as Follows, 
+select FollowedPerson.Name as Person,
+       Person.Name as Follows
 from   Network.Person, Network.Follows, Network.Person as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(Person<-(Follows)-FollowedPerson)
@@ -593,3 +598,116 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  where  Level Between 2 and 3
     and  ConnectedPerson = 'Lee Roy' --probably ought to use a surrogate or name parts
                                    --here in production code
+GO
+
+
+--IF you want to do something more in depth like a weighted path cost, you will need to resort to doing a recursive query. This can be really costly for large graphs because unlike a shortest path, you have to consider every possible path between nodes (in fact you will need to process every single node that connectes to your starting point. Even the longest path in number of hops can actually be the cheapest path.
+
+--Using our current graph, if you want to find all the paths between two nodes, you can use the following code.
+
+--fetch the starting point
+DECLARE @FirstName NVARCHAR(100) = N'Lou';
+DECLARE @LastName NVARCHAR(100) = N'Iss';
+
+--filter for the ending point
+DECLARE @ToFirstName NVARCHAR(100) = N'Lee';
+DECLARE @ToLastName NVARCHAR(100) = N'Roy';
+
+--for larger graphs, this may be needt to stop excessive recursion
+DECLARE @MaxLevel INT =10;
+
+WITH BaseRows
+AS (
+	--the CTE anchor is just the starting node
+	SELECT Person.PersonId,
+           Person.PersonId AS FollowsPersonId,
+           Person.Name, 
+		   --the path that contains the readable path we have built in all examples
+           CAST(Person.Name AS NVARCHAR(4000)) AS Path, 
+		   --this path is use to stop loops. If the personId is found in the path
+		   --already, then the recursion will stop
+           CAST(CONCAT('\', Person.PersonId, '\') AS VARCHAR(8000)) AS IdPath,
+           0 AS level --the level
+    FROM Network.Person
+    WHERE Person.FirstName = @FirstName
+          AND Person.LastName = @LastName
+    UNION ALL
+	--pretty typical 1 level graph query:
+    SELECT Person.PersonId AS PersonId,
+           FollowedPerson.PersonId AS FollowsPersonId,
+           FollowedPerson.Name,
+           BaseRows.Path + '>' + FollowedPerson.Name,
+           BaseRows.IdPath + CAST(FollowedPerson.PersonId AS VARCHAR(10)) + '\',
+           BaseRows.level + 1
+    FROM Network.Person,
+         Network.Follows,
+         Network.Person AS FollowedPerson,
+         BaseRows
+    WHERE MATCH(Person-(Follows)->FollowedPerson)
+				--this joins the anchor to the recursive part of the query
+                AND BaseRows.FollowsPersonId = Person.PersonId
+				--this is the part that stops recursion
+                AND NOT BaseRows.IdPath LIKE CONCAT('%\', FollowedPerson.PersonId, '\%')
+                AND BaseRows.level <= @MaxLevel)
+SELECT BaseRows.PersonId,
+       BaseRows.FollowsPersonId,
+       BaseRows.Name,
+       BaseRows.Path,
+       BaseRows.IdPath,
+       BaseRows.level
+FROM BaseRows
+WHERE BaseRows.Name = 'Lee Roy';
+GO
+
+--Finally, this example shows adding sums for weighting as noted
+
+DECLARE @FirstName NVARCHAR(100) = N'Lou';
+DECLARE @LastName NVARCHAR(100) = N'Iss';
+
+DECLARE @ToFirstName NVARCHAR(100) = N'Lee';
+DECLARE @ToLastName NVARCHAR(100) = N'Roy';
+
+
+DECLARE @MaxLevel INT = 4;
+
+WITH BaseRows
+AS (SELECT Person.PersonId,
+           Person.PersonId AS FollowsPersonId,
+           Person.Name,
+           CAST(Person.Name AS NVARCHAR(4000)) AS Path,
+           CAST(CONCAT('\', Person.PersonId, '\') AS VARCHAR(8000)) AS IdPath,
+           0 AS level,
+           0 AS WeightedCost, --edge sums
+           Person.Value AS NodeSum --node sums
+    FROM Network.Person
+    WHERE Person.FirstName = @FirstName
+          AND Person.LastName = @LastName
+    UNION ALL
+    SELECT Person.PersonId AS PersonId,
+           FollowedPerson.PersonId AS FollowsPersonId,
+           FollowedPerson.Name,
+           BaseRows.Path + '>' + FollowedPerson.Name,
+           BaseRows.IdPath + CAST(FollowedPerson.PersonId AS VARCHAR(10)) + '\',
+           BaseRows.level + 1,
+
+		   --add the values in each iteration
+           BaseRows.WeightedCost + Follows.Value,
+           BaseRows.NodeSum + FollowedPerson.Value
+    FROM Network.Person,
+         Network.Follows,
+         Network.Person AS FollowedPerson,
+         BaseRows
+    WHERE MATCH(Person-(Follows)->FollowedPerson)
+                AND BaseRows.FollowsPersonId = Person.PersonId
+                AND NOT BaseRows.IdPath LIKE CONCAT('%\', FollowedPerson.PersonId, '\%')
+                AND BaseRows.level < 10)
+SELECT BaseRows.PersonId,
+       BaseRows.FollowsPersonId,
+       BaseRows.Name,
+       BaseRows.Path,
+       BaseRows.IdPath,
+       BaseRows.level,
+       BaseRows.WeightedCost,
+       BaseRows.NodeSum
+FROM BaseRows
+WHERE BaseRows.Name = 'Lee Roy';
