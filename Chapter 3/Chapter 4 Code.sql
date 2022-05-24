@@ -69,3 +69,5 @@ GO
 
 
 --Power loading data using composible JSON tags
+
+--Heterogenous objects and queries
