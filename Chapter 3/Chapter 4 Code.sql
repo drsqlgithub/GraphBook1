@@ -71,7 +71,7 @@ SELECT (SELECT PersonId FROM Network.Person WHERE name = 'Lou iss'),
 GO
 --run the query again, and you will see the new row.
 
---delete and update next **
+--
 --As I should have said earlier (and will), edge objects cannot have their $from_id or $to_id values updated. And this makes good sense. but let's say you want to update the value to be 1, to match all of our other data.
 
 UPDATE Network_UI.Person_Follows_Person
@@ -163,11 +163,14 @@ FROM Network.Person,
 WHERE MATCH(Person-(Follows)->FollowedPerson)
   and Person.Name = 'Lou Iss';
 
---Constraints and Indexes
+--Heterogenous queries. 
 
---So far, we have been really careful with the data we have put into the edge tables, but as noted earlier, part of the value of edge tables are that they are very flexible. As any software developer knows though, flexiblity is dangerous when you don't expect it.
+--So far in the book, we have only kept the only pattern of usage for our designs to be one many to many relationship between just two nodes. Either the table was the same (Person Follows Person) or different (Person ProgramsWith ProgrammingLanguage). In this section I want to highlight the idea that you can have multiple relationships through one edge, and how you can query the nodes.
 
 --As an example, I am going to add another set of nodes to the sample graph. Going to call it Location. Then I will create edge values in the Follows edge. (Not that this makes sense, which is part of the point).
+
+--Figure 4 or whatever :)
+
 
 create table Network.Location
 (
@@ -178,66 +181,162 @@ INSERT INTO Network.Location (Name)
 VALUES ('Here'),('There')
 GO
 
+--Now I am going to 
 
---CREATE OR ALTER VIEW Network_UI.Person_Follows_Location
---AS
---SELECT Person.PersonId AS PersonId,
---		FollowedLocation.LocationId AS FollowsLocationId,
---		Follows.Value
---FROM Network.Person,
---     Network.Follows,
---     Network.Location AS FollowedLocation
---WHERE MATCH(Person-(Follows)->FollowedLocation);
---GO
---SELECT *
---FROM  Network_UI.Person_Follows_Location
---GO
 
---CREATE OR ALTER TRIGGER Network_UI.Person_Follows_Location$InsteadOfInsertTrigger
---ON Network_UI.Person_Follows_Location
---INSTEAD OF INSERT
---AS
---SET NOCOUNT ON;
--- --If you add more code, you should add error handling code.
--- BEGIN 
---  INSERT INTO Network.Follows($from_id, $to_id, Value)
---  SELECT Person.$node_id, FollowedLocation.$node_id, 
---		inserted.Value
---  FROM Inserted
---       JOIN Network.Person
---           ON Person.PersonId = Inserted.PersonId
---       JOIN Network.Location AS FollowedLocation
---           ON FollowedLocation.LocationId = Inserted.FollowsLocationId
--- END;
---GO
-**
 WITH Here AS (
-select $edge_id as edge_id
+select $node_id as node_id
 from   Network.Person 
 where  name IN ('Fred Rick','Lou Iss','Joe Seph')
 )
-insert into Network_UI.Person_Follows_Location(
+insert into Network.Follows(
 		$from_id, $to_id, Value)
-select Here.PersonId, Location.LocationId, 1
+select Here.node_id, Location.$node_id, 1
 from   Here
 		cross join Network.Location
 where  Location.Name = 'Here'
 
 WITH Here AS (
-select *
+select $node_id as node_id
 from   Network.Person 
 where  name IN ('Will Iam','Lee Roy','Day Vid')
 )
-insert into Network_UI.Person_Follows_Location(
-		PersonId, FollowsLocationId, Value)
-select Here.PersonId, Location.LocationId, 1
+insert into Network.Follows(
+		$from_id, $to_id, Value)
+select Here.node_id, Location.$node_id, 1
 from   Here
 		cross join Network.Location
-where  Location.Name = 'There';
+where  Location.Name = 'There'
 
---And I do think that was easier to code than the alternative, 
+--now you can see the rows we created like this:
+
+SELECT Person.Name, Location.Name
+from   Network.Person, Network.Follows, Network.Location
+where  Match(Person-(Follows)->Location)
+
+
+
+select Person.Name, Nodes.ObjectName, Nodes.Name
+from   Network.Person, Network.Follows, 
+       (SELECT 'Location' as ObjectName,Name
+	   FROM   Network.Location
+	   union all
+	   Select 'Person',Name
+	   FROM   Network.Person) as Nodes
+WHERE MATCH(Person-(Follows)->Nodes)
+  and Person.Name = 'Lou Iss'
+
+--This returns 
+/*
+Name		ObjectName	Name
+----------- ----------- ------------
+Lou Iss		Person		Will Iam
+Lou Iss		Person		Val Erry
+Lou Iss		Location	Here
+
+What is interesting in this model is that the graph objects carry along their graph identifiers whether you put them out there or not, and will generally be available for uses in graph queries, but if you want them to be accessible in other uses (like to use in an IN expression.)
+
+However, once you fetch the rows they go back to being strongly typed and shaped relational tables. And since the method we are discussing requires a derived table,CTE, or view object, you will need to shape the different sets of data to all be the same. 
+
+For the most part, I see this as useful for either one table being linked to another through an edge table, or for cases where the tables that are being linked through the same edge are very much similar in meaning (and it hopefully follows, shape)
+
+However, there are definitely uses for hetrogenous queries. For example, thinking of the Network schema as if it was a Customer Relationship Management (CRM) system, how could you see everything that they are connected to? Make a derived table of all the edges and all the nodes and match on that.
+*/
+
+select Person.Name, OtherThing.ObjectType, OtherThing.Name
+from   Network.Person, 
+		--the graph columns are exposed automatically, and no 
+		--columns do we need, so just returning nothing
+		--though this is clearly not a subquery about nothing
+	   (select 1 as nothing from network.Follows
+	    UNION ALL
+		Select 1 from network.ProgramsWith) as LinksTo,
+	   (SELECT 'Person' as ObjectType,
+			   Name from Network.Person
+	    UNION ALL
+		SELECT 'ProgrammingLanguage',
+				Name from Network.ProgrammingLanguage
+		UNION ALL
+		SELECT 'Location',
+		        Name from Network.Location) as OtherThing
+where  MATCH(Person-(LinksTo)->OtherThing)
+  and Person.Name = 'Lou Iss'
+
+/*
+Name	ObjectType	Name
+Lou Iss	Person	Will Iam
+Lou Iss	Person	Val Erry
+Lou Iss	Location	Here
+Lou Iss	ProgrammingLanguage	T-SQL
+
+Next I will make a few simple views to demonstrate how that works:
+*/
+CREATE VIEW Network.LinksTo
+AS
+  select 1 as nothing from network.Follows
+  UNION ALL
+  Select 1 from network.ProgramsWith
+GO
+CREATE VIEW Network.Anything
+as 
+  SELECT 'Person' as ObjectType,
+          Name from Network.Person
+  UNION ALL
+  SELECT 'ProgrammingLanguage',
+			Name from Network.ProgrammingLanguage
+  UNION ALL
+  SELECT 'Location',
+		  Name from Network.Location
+GO
+--Excute the query to get the same example as the one with derived tables.
+
+select Person.Name, AnyThing.ObjectType, AnyThing.Name
+from   Network.Person, Network.LinksTo, Network.Anything
+where  MATCH(Person-(LinksTo)->AnyThing)
+  and Person.Name = 'Lou Iss'
+/* What is interesting though is what happens if you add ,* to the SELECT clause. This should return all the columns right? And since we were clearly able to join on the graph key values through the MATCH expression, you would expect to see the values, right?
+
+Turns out not. When your objects are encapsulated into derived tables or view objects, you will only get access to the columns you output, even though the columns are in fact in use.
+
+However, the graph identifiers may not be exposed in the same manner in all uses like this. For example:
+*/
+select Person.Name, Nodes.ObjectName, Nodes.Name,
+		Nodes.$node_id
+from   Network.Person, Network.Follows, 
+       (SELECT 'Location' as ObjectName, Name, $node_id
+	   FROM   Network.Person) as Nodes
+WHERE MATCH(Person-(Follows)->Nodes)
+  and Person.Name = 'Lou Iss'
+/*
+Will throw this error:
+
+Msg 207, Level 16, State 1, Line 243
+Invalid column name '$node_id'.
+
+If you want the graph id value to be part of the output, you have to name them and use the name:
+*/
+select Person.Name, Nodes.ObjectName, Nodes.Name,
+		Nodes.NodeId
+from   Network.Person, Network.Follows, 
+       (SELECT 'Location' as ObjectName, Name, 
+			   $node_id as NodeId
+	   FROM   Network.Person) as Nodes
+WHERE MATCH(Person-(Follows)->Nodes)
+  and Person.Name = 'Lou Iss'
+ 
+/*
+Lou Iss	Location	Will Iam	{"type":"node","schema":"Network","table":"Person","id":4}
+Lou Iss	Location	Val Erry	{"type":"node","schema":"Network","table":"Person","id":2}
+
+You will need to include the implementation columns you need in your view definition if you ned it for some reason.
+*/
+
+--Constraints and indexes 
+
+--So far, we have been really careful with the data we have put into the edge tables, but as demonstrated in the past section, part of the value of edge tables are that they are very flexible. As any software developer knows though, flexiblity is a pro and a con, because sometimes as a designer you don't realize there is flexibility when there is.
+
+
+
 
 
 --Power loading data using composible JSON tags
-
---Heterogenous objects and queries
