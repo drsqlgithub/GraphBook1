@@ -331,12 +331,153 @@ Lou Iss	Location	Val Erry	{"type":"node","schema":"Network","table":"Person","id
 You will need to include the implementation columns you need in your view definition if you ned it for some reason.
 */
 
---Constraints and indexes 
+--Integrity Constraints and indexes 
 
 --So far, we have been really careful with the data we have put into the edge tables, but as demonstrated in the past section, part of the value of edge tables are that they are very flexible. As any software developer knows though, flexiblity is a pro and a con, because sometimes as a designer you don't realize there is flexibility when there is.
 
+--The classic integrity constraints you know already (foreign key, check, unique, primary key, default) all generally work with graph tables just like they do with normal relational tables. However, because an edge table can have more than one type of data in them, there needed to be a new type of constraint, this being the edge constraint.
+
+--The edge constraint limits what data can be put into an edge constraint by table. For example, when I built the relationship for the homogenous section of this chapter, I made the relationship Person->Follows->Location. It makes no sense semantically, so I want to change that to have its own edge: LivesAt. Person->LivesAt->Location.
+
+--Along the way of moving the rows to this new edge, I can show the things that can happen with an edge object. 
+
+--Ok, so let's add a constraint to the Network.Follows edge that will accept the data that is currently in the table to show how to do multiple tables. I are going to allow Network.Person to Network.Person and then the Network.Person to Network.Location (which I will work to remove).
+
+ALTER TABLE Network.Follows
+add constraint EC_Follows CONNECTION (Network.Person TO Network.Location, Network.Person TO Network.Person) ON DELETE NO ACTION;
+
+--the NO ACTION on the DELETE Operation means you cannot delete a related node in either connected table without deleting all edges that are connected. If you use CASCADE instead of no action, a delete of a node in either table would cause the edge row to be removed.  (I won't demonstrate it, but you could easily construct an after trigger object that could do just one side if desired.)
+
+--One of the stranger things about edge constraints is that while you can have more than one at a time, their conditions are ANDed together. So you can't add conditions with a new edge constraint. And the error message you get when you try will be interesting.
+
+ALTER TABLE Network.Follows
+add constraint EC_Follows2 CONNECTION (Network.Person TO Network.ProgrammingLanguage) ON DELETE NO ACTION;
+
+--Returns this:
+/*
+Msg 547, Level 16, State 0, Line 383
+The ALTER TABLE statement conflicted with the EDGE constraint "EC_Follows2". The conflict occurred in database "TestGraph", table "Network.Follows".
+
+So we will need to drop the existing constraint before adding a new one. So I am going to delete the EC_Follows constraint.
+*/
+ALTER TABLE Network.Follows DROP EC_Follows
+
+--Ok, now let's delete one of the location rows (not needed for our ultimate goal, but I am doing it here to show you what happens without a constraint.
+DELETE Network.Location
+where  Name = 'Here'
+
+--Looking at the data, something is odd now:
+
+select *
+from   Network.Location
+
+--There is only the one location. If you look at the following query:
+
+select $to_id, count(*)
+from   Network.Follows
+where  $to_id like '%location%'
+group by $to_id
+
+--You will see 2 rows (with 3 for the second column of both, most likely... since we haven't protected against duplicates yet, you might have done what I did and added extras).
+
+--You can find the offending row using a bit more messy query, assuming you know the table you expect the issue to be from. If you have a bunch of tables it can be a challenge
+
+select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+		$to_id
+from   Network.Follows
+where  $to_id not in (select $node_id from Network.Person
+					  union all
+					  select $node_id from Network.ProgrammingLanguage
+					  union all
+					  select $node_id from Network.Location)
+
+--This will tell you the object where the key values come from and the key value so you can delete the edges.
+
+DELETE Network.Follows
+where  $to_id = '{"type":"node","schema":"Network","table":"Location","id":0}'
+
+--Now lets put the edge constraint back on with the two tables, but this time with CASCADE.
+
+ALTER TABLE Network.Follows
+add constraint EC_Follows CONNECTION (Network.Person TO Network.Location, Network.Person TO Network.Person) ON DELETE CASCADE;
+
+--now just delete the Locations rows and the rows will be gone from the edge
+
+select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+		COUNT(*)
+from   Network.Follows
+GROUP BY OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id))
+
+delete from Network.Location;
+
+/*
+the output of shows 1 row affected, but if you run the previous SELECT statement again, there are only 11 Network.Person rows in the Network. Follows table. So now we can change the constraint.
+*/
+
+
+seldc
 
 
 
+OBJECT_ID_FROM_NODE_ID	Extract the object_id from a node_id
+GRAPH_ID_FROM_NODE_ID	Extract the graph_id from a node_id
+NODE_ID_FROM_PARTS	Construct a node_id from an object_id and a graph_id
+OBJECT_ID_FROM_EDGE_ID
+
+Ok, so we want to change:
+
+ALTER TABLE Network.Follows
+add constraint EC_Follows CONNECTION (Network.Person TO Network.Location, Network.Person TO Network.Person) ON DELETE NO ACTION;
+
+into 
+
+ALTER TABLE Network.Follows
+add constraint EC_Follows CONNECTION (Network.Person TO Network.Person) ON DELETE NO ACTION;
+
+We know it will be an issue, so we 
+
+--Network.Location object except from the Network.Person for the From and the To values.
 
 --Power loading data using composible JSON tags
+
+--show that you can make up data.
+
+create Table Network.LivesAt
+as Edge;
+
+WITH Here AS (
+select $node_id as node_id
+from   Network.Person 
+where  name IN ('Fred Rick','Lou Iss','Joe Seph')
+)
+insert into Network.LivesAt(
+		$from_id, $to_id)
+select Here.node_id, Location.$node_id
+from   Here
+		cross join Network.Location
+where  Location.Name = 'Here'
+
+WITH Here AS (
+select $node_id as node_id
+from   Network.Person 
+where  name IN ('Will Iam','Lee Roy','Day Vid')
+)
+insert into Network.LivesAt(
+		$from_id, $to_id)
+select Here.node_id, Location.$node_id
+from   Here
+		cross join Network.Location
+where  Location.Name = 'There'
+
+--So now I want to prevent there from being data in the Network.LivesAt that isn't Network.Person in the from, and Network.Location in the to position. Using an edge constraint is a lot like a foreign key, except we are going to specify two sides of the equations.
+
+ALTER TABLE Network.LivesAt
+add constraint EC_LivesAt CONNECTION (Network.Person TO Network.Location) ON DELETE NO ACTION;
+
+drop table Network.LivesAt
+
+
+--metadata
