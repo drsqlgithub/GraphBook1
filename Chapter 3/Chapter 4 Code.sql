@@ -417,36 +417,26 @@ delete from Network.Location;
 the output of shows 1 row affected, but if you run the previous SELECT statement again, there are only 11 Network.Person rows in the Network. Follows table. So now we can change the constraint.
 */
 
-
-seldc
-
-
-
-OBJECT_ID_FROM_NODE_ID	Extract the object_id from a node_id
-GRAPH_ID_FROM_NODE_ID	Extract the graph_id from a node_id
-NODE_ID_FROM_PARTS	Construct a node_id from an object_id and a graph_id
-OBJECT_ID_FROM_EDGE_ID
-
-Ok, so we want to change:
+ALTER TABLE Network.Follows drop constraint EC_Follows
 
 ALTER TABLE Network.Follows
-add constraint EC_Follows CONNECTION (Network.Person TO Network.Location, Network.Person TO Network.Person) ON DELETE NO ACTION;
+add constraint EC_Follows CONNECTION (Network.Person TO Network.Person) 
+  ON DELETE NO ACTION;
 
-into 
+--I set it to NO ACTION because I typically would prefer to delete the rows manually rather than have them just automatically go away.
 
-ALTER TABLE Network.Follows
-add constraint EC_Follows CONNECTION (Network.Person TO Network.Person) ON DELETE NO ACTION;
-
-We know it will be an issue, so we 
-
---Network.Location object except from the Network.Person for the From and the To values.
-
---Power loading data using composible JSON tags
-
---show that you can make up data.
+--Next I will create the new edge with a an edge constraint to prevent any data other than associating a person to a location.
 
 create Table Network.LivesAt
+(
+	CONSTRAINT EC_LivesAt CONNECTION (Network.Person to Network.Location)
+)
 as Edge;
+
+insert into Network.Location(Name)
+Values ('Here'),('There');
+
+--Load the data back
 
 WITH Here AS (
 select $node_id as node_id
@@ -460,6 +450,7 @@ from   Here
 		cross join Network.Location
 where  Location.Name = 'Here'
 
+
 WITH Here AS (
 select $node_id as node_id
 from   Network.Person 
@@ -471,13 +462,104 @@ select Here.node_id, Location.$node_id
 from   Here
 		cross join Network.Location
 where  Location.Name = 'There'
+--execute that second insert again. Note that now you have duplicated data:
 
---So now I want to prevent there from being data in the Network.LivesAt that isn't Network.Person in the from, and Network.Location in the to position. Using an edge constraint is a lot like a foreign key, except we are going to specify two sides of the equations.
+select Person.Name, Location.Name
+from   Network.Person, Network.LivesAt, Network.Location
+WHERE Match(Person-(LivesAt)->Location)
+and Location.Name = 'There'
 
-ALTER TABLE Network.LivesAt
-add constraint EC_LivesAt CONNECTION (Network.Person TO Network.Location) ON DELETE NO ACTION;
+--To prevent this, we can use simple unique constraints that reference the pseudocolumns. For example, after deleting the rows for There location.
 
-drop table Network.LivesAt
+Delete LivesAt
+from   Network.Person, Network.LivesAt, Network.Location
+WHERE Match(Person-(LivesAt)->Location)
+and Location.Name = 'There'
+
+--You can create the following key value:
+
+alter table Network.LivesAt
+  add constraint AKLivesAt_FromIdToId UNIQUE ($from_id, $to_id)
+
+--this is a performance index that can be valuable as well in breadth-first algorithms anyhow.  Now try the insert repeatedly. On the second run you get
+/*
+Msg 2627, Level 14, State 1, Line 454
+Violation of UNIQUE KEY constraint 'AKLivesAt_FromIdToId'. Cannot insert duplicate key in object 'Network.LivesAt'. The duplicate key value is (581577110, 3, 1205579333, 3).
+
+What the heck are those numbers? They are the keys in the underlying graph objects. The key values of object_id and graph iternal id. For this, we can use the following tool function to look up the values:
+*/
+IF SCHEMA_ID('Tools') IS NULL
+  EXEC ('CREATE SCHEMA Tools')
+GO
+CREATE OR ALTER PROCEDURE Tools.GraphDB$LookupItem
+(
+	@ObjectId int,
+	@Id int 
+)
+AS
+BEGIN
+	SET NOCOUNT ON;
+	DECLARE @SchemaName sysname = OBJECT_SCHEMA_NAME(@ObjectId),
+		    @TableName sysname = OBJECT_NAME(@ObjectId),
+	        @SQLStatement nvarchar(MAX)
+	SET @SQLStatement = CONCAT('SELECT * FROM ', QUOTENAME(@SchemaName),'.',QUOTENAME(@TableName),
+			' WHERE GRAPH_ID_FROM_NODE_ID($node_id)  = ',@Id)
+
+	EXECUTE (@SQLStatement)
+END;
+GO
+
+--Now you can look up the items pretty easily:
+
+EXEC Tools.GraphDB$LookupItem 581577110, 3
+EXEC Tools.GraphDB$LookupItem 1205579333, 3
+
+--While there are some indexes already on your object, for example on the LivesAt edge table we have created
+
+select name, type_desc
+from   sys.indexes 
+where object_Id = OBJECT_ID('Network.LivesAt')
+
+--you can see we have this GRAPH_UNIQUE_INDEX_AD2E365DF5144A62BEBC7C7260258E2A index that is on the internal graph columns, but there is not clustered index. So you could make to UNIQUE constraint clustered, or even make it the PRIMARY KEY. 
+
+alter table Network.LivesAt
+  drop constraint AKLivesAt_FromIdToId
+
+alter table Network.LivesAt
+  add constraint AKLivesAt_FromIdToId  UNIQUE CLUSTERED ($from_id, $to_id)
+
+--look at sys.indexes again and it is now clustered. This can be very helpful for certain types of workloads that mostly fetch data by the $from_id value, which we know to be two columns from the duplicate key error. You can see that in the system tables:
+
+select indexes.name, indexes.type_desc,
+		index_columns.key_ordinal,
+		columns.name
+from   sys.Index_columns
+		 JOIN sys.indexes
+			on indexes.object_id = index_columns.object_id
+			  and indexes.index_id = index_columns.index_id
+		 JOIN sys.columns
+			on indexes.object_id = columns.object_id
+			  and columns.column_id = index_columns.column_id
+where indexes.object_id = object_id('Network.LivesAt')
 
 
---metadata
+--Finally, a check constraint that I add to my tables almost instinctively is **
+
+
+
+
+--Power loading data using composible JSON tags
+
+--show that you can make up data.
+
+select indexes.name, indexes.type_desc,
+		index_columns.key_ordinal,
+		columns.name
+from   sys.Index_columns
+		 JOIN sys.indexes
+			on indexes.object_id = index_columns.object_id
+			  and indexes.index_id = index_columns.index_id
+		 JOIN sys.columns
+			on indexes.object_id = columns.object_id
+			  and columns.column_id = index_columns.column_id
+where indexes.object_id = object_id('Network.LivesAt')
