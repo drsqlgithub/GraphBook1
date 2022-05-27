@@ -543,10 +543,32 @@ from   sys.Index_columns
 where indexes.object_id = object_id('Network.LivesAt')
 
 
---Finally, a check constraint that I add to my tables almost instinctively is **
+--Finally, a trigger that I sometimes add to my edge tables is to disallow self connections. For example, that Fred Rick follows Fred Rick:
 
+INSERT INTO Network.Follows
+(
+    $from_id,
+    $to_id,
+    Value
+)
+SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   1
 
+--It is actually the only possible way to answer a question like this.
+select Person.Name
+from   Network.Person, Network.Follows
+WHERE Match(Person-(Follows)->Person)
 
+--Reusing an edge isnt allowed, but reusing a node is. However, when you reuse a node, it is exactly the same set of data filtered by itself. So the MATCH expression ends up just being:
+
+WHERE Person.$node_id = Follows.$from_id
+  AND Person.$node_id = Follows.$to_id
+
+--Since the $node_id is not an array (we are still in a relational database) so not even could there be multiple rows returned. THe only row that could be returned is one where Fred follows Fred. Hence, I almost always add the following check constraint to my objects:
+
+ALTER TABLE Network.Follows 
+	ADD CONSTRAINT CHKFollows_NoSelfReference CHECK ($to_id = $to_id)
 
 --Power loading data using composible JSON tags
 
