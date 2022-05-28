@@ -1,44 +1,44 @@
-alter database TestGraph set single_user with rollback immediate
+ALTER DATABASE TestGraph SET SINGLE_USER WITH ROLLBACK IMMEDIATE
 GO
-use master
+USE master
 GO
-drop database TestGraph
+DROP DATABASE TestGraph
 GO
-create database TestGraph
+CREATE DATABASE TestGraph
 GO
-use TestGraph
+USE TestGraph
 GO
 
 --Figure 1 before this
 
 --start out creating a single node table and one edge
-if schema_id('Network') is null
-	exec ('CREATE SCHEMA Network');
+IF SCHEMA_ID('Network') IS NULL
+	EXEC ('CREATE SCHEMA Network');
 GO
-create table Network.Person
+CREATE TABLE Network.Person
 (
-	PersonId int identity CONSTRAINT PKPerson PRIMARY KEY,
-	FirstName nvarchar(100) NULL,
-	LastName  nvarchar(100) NOT NULL,
-	Name as (CONCAT(FirstName+' ',LastName)) PERSISTED,
-	Value int NOT NULL CONSTRAINT DFLTPerson_Value DEFAULT(1),
+	PersonId INT IDENTITY CONSTRAINT PKPerson PRIMARY KEY,
+	FirstName NVARCHAR(100) NULL,
+	LastName  NVARCHAR(100) NOT NULL,
+	Name AS (CONCAT(FirstName+' ',LastName)) PERSISTED,
+	Value INT NOT NULL CONSTRAINT DFLTPerson_Value DEFAULT(1),
 	CONSTRAINT AKPerson UNIQUE (FirstName,LastName)
-) as NODE;
+) AS NODE;
 GO
-create table Network.Follows
-(Value int NOT NULL 
+CREATE TABLE Network.Follows
+(Value INT NOT NULL 
 	CONSTRAINT DFLTFollows_Value DEFAULT(1))
 AS EDGE;
 GO
 
 --listing nodes and edges
-select object_schema_name(object_id) as schema_name,
-       name as table_name,
+SELECT OBJECT_SCHEMA_NAME(object_id) AS schema_name,
+       name AS table_name,
 	   is_edge,
 	   is_node
-from  sys.tables
-where is_edge = 1
- or   is_node = 1;
+FROM  sys.tables
+WHERE is_edge = 1
+ OR   is_node = 1;
 GO
 
 --adding node rows is exactly like adding rows to any table
