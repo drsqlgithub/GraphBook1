@@ -666,18 +666,51 @@ Msg 50000, Level 16, State 1, Procedure Follows$InsertUpdateTrigger, Line 21 [Ba
 $from_id must not equal $to_id when modifying edge
 */
 
---Power loading data using composible JSON tags
+--Loading data using composible JSON tags
 
---show that you can make up data.
+--THIS CODE LOCATED IN Chapter4_AdventureworksLT.sql
 
-select indexes.name, indexes.type_desc,
-		index_columns.key_ordinal,
-		columns.name
-from   sys.Index_columns
-		 JOIN sys.indexes
-			on indexes.object_id = index_columns.object_id
-			  and indexes.index_id = index_columns.index_id
-		 JOIN sys.columns
-			on indexes.object_id = columns.object_id
-			  and columns.column_id = index_columns.column_id
-where indexes.object_id = object_id('Network.LivesAt')
+
+--Metadata Roundup
+
+--List graph objects in the databse
+select object_schema_name(object_id) as schema_name,
+       name,
+	   CASE WHEN is_node = 1 THEN 'Node'
+	        WHEN is_edge = 1 THEN 'Edge'
+			ELSE 'Bad code!' END
+from   sys.tables
+where  is_node = 1
+  or   is_edge = 1;
+
+--types of graph columns
+  select name, column_id,
+		 graph_type_desc
+  from   sys.columns
+  where  object_id('Network.Person') = object_id
+ and  graph_type_desc is not null;
+
+   select name, column_id, 
+   case when name like '$%' then 1 else 0 end as has_pseudocolumn,
+		 graph_type_desc
+  from   sys.columns
+  where  object_id('Network.Follows') = object_id
+    and  graph_type_desc is not null;
+
+select OBJECT_ID_FROM_EDGE_ID($edge_id) as FollowsObjectId,
+	   GRAPH_ID_FROM_EDGE_ID($edge_id) as FollowsEdgeId,
+
+	   OBJECT_ID_FROM_NODE_ID($from_id) as FromObjectId,
+	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as FromObjectSchemaName,
+	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as FromObjectName,
+	   GRAPH_ID_FROM_NODE_ID($from_id) as FromGraphId,
+	   OBJECT_ID_FROM_NODE_ID($to_id) as ToObjectId,
+	   GRAPH_ID_FROM_NODE_ID($to_id) as ToGraphId,
+	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)) as ToObjectSchemaName,
+	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as ToObjectName
+from   Network.Follows;
+
+--Then you can look at a row using the following (I just randomly picked out a row from the output, but often you have these values as I showed earlier in the error message)
+SELECT *
+FROM   Network.Person
+where  $Node_id = NODE_ID_FROM_PARTS(581577110,5);
