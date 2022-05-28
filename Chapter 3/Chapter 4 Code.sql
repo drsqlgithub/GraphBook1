@@ -565,10 +565,106 @@ WHERE Match(Person-(Follows)->Person)
 WHERE Person.$node_id = Follows.$from_id
   AND Person.$node_id = Follows.$to_id
 
---Since the $node_id is not an array (we are still in a relational database) so not even could there be multiple rows returned. THe only row that could be returned is one where Fred follows Fred. Hence, I almost always add the following check constraint to my objects:
+--Since the $node_id is not an array (we are still in a relational database) so not even could there be multiple rows returned. THe only row that could be returned is one where Fred follows Fred. 
+
+
+--Finally, a trigger that I sometimes add to my edge tables is to disallow self connections. For example, that Fred Rick follows Fred Rick:
+
+INSERT INTO Network.Follows
+(
+    $from_id,
+    $to_id,
+    Value
+)
+SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   1
+
+--It is actually the only possible way to answer a query like this.
+
+select Person.Name
+from   Network.Person, Network.Follows
+WHERE Match(Person-(Follows)->Person)
+
+--Reusing an edge isnt allowed, but reusing a node is. However, when you reuse a node, it is exactly the same set of data filtered by itself. So the MATCH expression ends up just being:
+
+WHERE Person.$node_id = Follows.$from_id
+  AND Person.$node_id = Follows.$to_id
+
+--Since the $node_id is not an array (we are still in a relational database) so not even could there be multiple rows returned. THe only row that could be returned is one where Fred follows Fred. 
+
+--You cannot do the following and add a check constraint, because that is not allowed.
 
 ALTER TABLE Network.Follows 
 	ADD CONSTRAINT CHKFollows_NoSelfReference CHECK ($to_id = $to_id)
+
+/*
+This returns:
+
+Msg 13918, Level 16, State 1, Line 598
+Adding constraint to column '$to_id' of a node or edge table is not allowed.
+
+So we have to do it the hard way, using an after trigger. Note that in the previous example I used an instead of trigger on a view object, which is the best trigger for changing what is happening in an operation. But now we just want to check to see if things are correct after the insert. This trigger will be extended in later examples, because for some uses we will need to extend it to look for cycles beyond one node.
+
+--For this I am going to use my full trigger template from my Database Design book because error handling from a trigger is better if you control how errors are raised and dealt with.
+*/
+
+CREATE TRIGGER Network.Follows$InsertUpdateTrigger
+ON Network.Follows
+AFTER INSERT,UPDATE AS --make 2 triggers if you need them to do anything
+                       --different
+BEGIN
+   SET NOCOUNT ON; --to avoid the rowcount messages
+   SET ROWCOUNT 0; --in case the client has modified the rowcount
+
+
+   DECLARE @msg varchar(2000),    --used to hold the error message
+           @rowsAffected int = (SELECT COUNT(*) FROM inserted);
+       
+   --no need to continue on if no rows affected
+   IF @rowsAffected = 0 RETURN;
+
+   BEGIN TRY
+          --[validation section]
+		  IF EXISTS (SELECT * FROM Inserted WHERE $from_id = $to_id)
+		   BEGIN
+				SET @msg = '$from_id must not equal $to_id when modifying edge';
+				THROW 50000, @msg, 1;
+		   END;
+          --[modification section]
+   END TRY
+   BEGIN CATCH
+      IF @@trancount > 0
+          ROLLBACK TRANSACTION;
+
+      THROW; --will halt the batch or be caught by the caller's catch block
+	         --with the transaction aborted.
+  END CATCH;
+END;
+GO
+--The duplicate row can be removed by executing the following (when bulk loading data, you may turn off the trigger object to increase performance of the operation.):
+
+DELETE 
+FROM   Network.Follows
+WHERE  $from_id = $to_id
+
+--Now try to do the following insert:
+
+INSERT INTO Network.Follows
+(
+    $from_id,
+    $to_id,
+    Value
+)
+SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+	   1
+/*
+Now you get this as a return:
+
+Msg 50000, Level 16, State 1, Procedure Follows$InsertUpdateTrigger, Line 21 [Batch Start Line 649]
+$from_id must not equal $to_id when modifying edge
+*/
 
 --Power loading data using composible JSON tags
 
