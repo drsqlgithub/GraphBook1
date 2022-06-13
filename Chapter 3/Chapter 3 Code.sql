@@ -1,71 +1,71 @@
-ALTER DATABASE TestGraph SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+IF EXISTS (SELECT * FROM SYS.databases WHERE name = 'TestGraph')
+	ALTER DATABASE TestGraph SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 GO
+
 USE master;
 GO
-DROP DATABASE TestGraph;
+
+DROP DATABASE IF EXISTS TestGraph;
 GO
+
 CREATE DATABASE TestGraph;
 GO
+
 USE TestGraph;
 GO
 
 --Figure 1 before this
 
 --start out creating a single node table and one edge
+
 IF SCHEMA_ID('Network') IS NULL
-	EXEC ('CREATE SCHEMA Network');
+    EXEC('CREATE SCHEMA Network');
 GO
+
 CREATE TABLE Network.Person
 (
-	PersonId INT IDENTITY CONSTRAINT PKPerson PRIMARY KEY,
-	FirstName NVARCHAR(100) NULL,
-	LastName  NVARCHAR(100) NOT NULL,
-	Name AS (CONCAT(FirstName+' ',LastName)) PERSISTED,
-	Value INT NOT NULL CONSTRAINT DFLTPerson_Value DEFAULT(1),
-	CONSTRAINT AKPerson UNIQUE (FirstName,LastName)
-) AS NODE;
+    PersonId  int           IDENTITY CONSTRAINT PKPerson PRIMARY KEY,
+    FirstName nvarchar(100) NULL,
+    LastName  nvarchar(100) NOT NULL,
+    Name      AS (CONCAT(FirstName + ' ', LastName))PERSISTED,
+    Value     int           NOT NULL CONSTRAINT DFLTPerson_Value DEFAULT(1),
+    CONSTRAINT AKPerson UNIQUE(
+        FirstName,
+        LastName)
+)AS NODE;
 GO
+
 CREATE TABLE Network.Follows
-(Value INT NOT NULL 
-	CONSTRAINT DFLTFollows_Value DEFAULT(1))
-AS EDGE;
+(
+    Value int NOT NULL CONSTRAINT DFLTFollows_Value DEFAULT(1)
+)AS EDGE;
 GO
 
 --listing nodes and edges
 SELECT OBJECT_SCHEMA_NAME(tables.object_id) AS schema_name,
        tables.name AS table_name,
-	   tables.is_edge,
-	   tables.is_node
-FROM  sys.tables
-WHERE tables.is_edge = 1
- OR   tables.is_node = 1;
+       tables.is_edge,
+       tables.is_node
+FROM   sys.tables
+WHERE  tables.is_edge = 1
+    OR tables.is_node = 1;
 GO
 
 --adding node rows is exactly like adding rows to any table
-INSERT INTO Network.Person
-(
-    FirstName,
-    LastName
-)
-VALUES
-('Fred', 'Rick'),
-('Lou', 'Iss'),
-('Val', 'Erry'),
-('Lee', 'Roy'),
-('Will', 'Iam'),
-('Joe', 'Seph'),
-('Day', 'Vid');
+INSERT INTO Network.Person(FirstName, LastName)
+VALUES('Fred', 'Rick'),
+      ('Lou', 'Iss'),
+      ('Val', 'Erry'),
+      ('Lee', 'Roy'),
+      ('Saa', 'Lee'),
+      ('Joe', 'Seph'),
+      ('Day', 'Vid');
 
 --then select some data from the table:
-SELECT Person.$node_id,
-       Person.PersonId,
-       Person.FirstName,
-       Person.LastName,
-       Person.Name,
-       Person.Value
-FROM Network.Person
-WHERE Person.FirstName = 'Fred'
-      AND Person.LastName = 'Rick';
+SELECT *
+FROM   Network.Person
+WHERE  Person.FirstName = 'Fred'
+    AND Person.LastName = 'Rick';
 GO
 
 /*
@@ -83,10 +83,12 @@ PersonId    FirstName    LastName       Name             Value
 */
 
 --#You can use the column name in a query:
-select [$node_id_3949CAAFE93D496C9A4CF1F33767B666] 
+
+select [$node_id_C580185613BB42EF81F4A68F6FA539DC] 
 from   Network.Person
-where [$node_id_3949CAAFE93D496C9A4CF1F33767B666]  = 
-'{"type":"node","schema":"Network","table":"Person","id":0}';
+where [$node_id_C580185613BB42EF81F4A68F6FA539DC]  = 
+'{"type":"node","schema":"Network","table":"Person","id":0}'
+
 
 /*
 returns the same thing. Leave off the square brackets and you will get
@@ -96,18 +98,15 @@ Invalid pseudocolumn "$node_id_3949CAAFE93D496C9A4CF1F33767B666".
 */
 
 --A pseudocolumn is a SQL Server construct that lets you use a value without knowing its exact name. There are others, particularly in partitioning. Here, you use $node_id instead of this value (which will change when you create this table on your maching in all probability)
-select Person.$node_id --not in square brackets, because this is not a column name
-from   Network.Person
-where Person.$node_id  = '{"type":"node","schema":"Network","table":"Person","id":0}';
+SELECT Person.$node_id --not in square brackets, because this is not a column name
+FROM   Network.Person
+WHERE  Person.$node_id = '{"type":"node","schema":"Network","table":"Person","id":0}';
 
 --briefly describe how that node id works.. Will show more examples later.
 
 --for the edge we created, we have several more pseudocolumns to work with:
-select Follows.$edge_id,
-       Follows.$from_id,
-       Follows.$to_id,
-       Follows.Value
-from   Network.Follows;
+SELECT *
+FROM   Network.Follows;
 
 /*
 $edge_id_3E64B3D47C09432595C25D1FB2146A35 
@@ -124,23 +123,20 @@ and a value column again for later usage.
 These are all abbreviated as $edge_id, $from_id, $to_id. The latter two take as input a $node_id from a node. When doing the input of data, the basic pattern is something like this:
 
 */
-insert into Network.Follows($From_id, $To_id)
-select (select Person.$node_id 
-        from Network.Person 
-        where Person.FirstName = 'fred' 
-		  and Person.LastName = 'Rick') as from_id, --just a name to make it easier to see when debugging
-	   (select Person.$node_id 
-	    from Network.Person 
-		where Person.FirstName = 'Joe' 
-		 and Person.LastName = 'Seph') as to_id;
+INSERT INTO Network.Follows($from_id, $to_id)
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'fred'
+               AND Person.LastName = 'Rick') AS from_id, --just a name to make it easier to see when debugging
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Joe'
+               AND Person.LastName = 'Seph') AS to_id;
 GO
 
 --looking at that data, you can see:
-select Follows.$edge_id,
-       Follows.$from_id,
-       Follows.$to_id,
-       Follows.Value
-from   Network.Follows;
+SELECT *
+FROM   Network.Follows;
 GO
 
 /*
@@ -158,15 +154,17 @@ $edge_id_3E64B3D47C09432595C25D1FB2146A35
  ----------------------------------------------------------
  {"type":"node","schema":"Network","table":"Person","id":5}
  */
- --you also can do this (first clear the table, as we have not protected
- --against duplication yet, which I will show later)
- truncate table Network.Follows; --using truncate so the id values are
-								--reset, just for clarity in writing
-								--no need to do this in real use
+--you also can do this (first clear the table, as we have not protected
+--against duplication yet, which I will show later)
 
- insert into Network.Follows($from_id, $to_id)
- values ('{"type":"node","schema":"Network","table":"Person","id":0}',
-         '{"type":"node","schema":"Network","table":"Person","id":5}');
+TRUNCATE TABLE Network.Follows;
+
+--using truncate so the id values are
+--reset, just for clarity in writing
+--no need to do this in real use
+INSERT INTO Network.Follows($from_id, $to_id)
+VALUES('{"type":"node","schema":"Network","table":"Person","id":0}',
+       '{"type":"node","schema":"Network","table":"Person","id":5}');
 
 --note that these items are values you can directly enter, but they are not the actual values that are stored.
 
@@ -174,82 +172,146 @@ $edge_id_3E64B3D47C09432595C25D1FB2146A35
 --i will also demonstrate how things are implemented internally, which is really useful especially when dealing with errors
 
 --then the rest of the rows
-insert into Network.Follows($From_id, $To_id)
-select (select Person.$node_id from Network.Person where Person.FirstName = 'fred' and Person.LastName = 'Rick'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Lou' and Person.LastName = 'Iss')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Joe' and Person.LastName = 'Seph'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Will' and Person.LastName = 'Iam')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Will' and Person.LastName = 'Iam'),
-		(select Person.$node_id from Network.Person where Person.FirstName = 'Lee' and Person.LastName = 'Roy')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Joe' and Person.LastName = 'Seph')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Lee' and Person.LastName = 'Roy')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Lou' and Person.LastName = 'Iss'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Will' and Person.LastName = 'Iam')
+INSERT INTO Network.Follows($from_id, $to_id)
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'fred'
+               AND Person.LastName = 'Rick'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lou'
+               AND Person.LastName = 'Iss')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Joe'
+               AND Person.LastName = 'Seph'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lee'
+               AND Person.LastName = 'Roy')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Joe'
+               AND Person.LastName = 'Seph')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lee'
+               AND Person.LastName = 'Roy')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lou'
+               AND Person.LastName = 'Iss'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee')
 
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Lou' and Person.LastName = 'Iss'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Will' and Person.LastName = 'Iam'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Fred' and Person.LastName = 'Rick')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Fred' and Person.LastName = 'Rick'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry')
-union all
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Day' and Person.LastName = 'Vid'),
-	   (select Person.$node_id from Network.Person where Person.FirstName = 'WIll' and Person.LastName = 'Iam');
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lou'
+               AND Person.LastName = 'Iss'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Fred'
+               AND Person.LastName = 'Rick')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Fred'
+               AND Person.LastName = 'Rick'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry')
+UNION ALL
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Day'
+               AND Person.LastName = 'Vid'),
+       (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee');
 GO
-
 --the following query is something you rarely want to do (joining on the internal values directly). But this query is directly analagous to what our simplest graph query will do.
-
-SELECT Person.Name as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName
-from   Network.Person
-	    join Network.Follows
-			on Person.$node_id = Follows.$from_id
-		join Network.Person as FollowedPerson
-			on FollowedPerson.$node_id = Follows.$to_id;
+SELECT Person.Name AS PersonName,
+       FollowedPerson.Name AS FollowedPersonName
+FROM   Network.Person
+       JOIN Network.Follows
+           ON Person.$node_id = Follows.$from_id
+       JOIN Network.Person AS FollowedPerson
+           ON FollowedPerson.$node_id = Follows.$to_id;
 /*
 PersonName     FollowedPersonName
 -------------- ----------------------
 Fred Rick      Joe Seph
 Fred Rick      Lou Iss
-Joe Seph       Will Iam
-Will Iam       Lee Roy
+Joe Seph       Saa Lee
+Saa Lee       Lee Roy
 Val Erry       Joe Seph
 Val Erry       Lee Roy
-Lou Iss        Will Iam
+Lou Iss        Saa Lee
 Lou Iss        Val Erry
-Will Iam       Fred Rick
+Saa Lee       Fred Rick
 Fred Rick      Val Erry
-Day Vid        Will Iam
+Day Vid        Saa Lee
 
 This will match all the directed edge lines in Figure 1
 
 --briefly explaing the basic MATCH operator, and how this query is the way it works
 
 */
-select cast(Person.Name as nvarchar(20)) as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName
-from   Network.Person, Network.Follows, Network.Person as FollowedPerson
-where  MATCH(Person-(Follows)->FollowedPerson);
+SELECT      CAST(Person.Name AS nvarchar(20)) AS PersonName,
+            FollowedPerson.Name AS FollowedPersonName
+FROM        Network.Person,
+            Network.Follows,
+            Network.Person AS FollowedPerson
+WHERE MATCH(Person-(Follows)->FollowedPerson);
 GO
+
 --same output, probably sorted differentl
 
 --note too that you can't use ANY ANSI style joins in the query... Not even the equivalent CROSS JOIN for the commas.
 
-select cast(Person.Name as nvarchar(20)) as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName
-from   Network.Person CROSS JOIN Network.Follows CROSS JOIN Network.Person as FollowedPerson
-where  MATCH(Person-(Follows)->FollowedPerson);
+SELECT      CAST(Person.Name AS nvarchar(20)) AS PersonName,
+            FollowedPerson.Name AS FollowedPersonName
+FROM        Network.Person
+            CROSS JOIN Network.Follows
+            CROSS JOIN Network.Person AS FollowedPerson
+WHERE MATCH(Person-(Follows)->FollowedPerson);
 GO
+
 /*
 Msg 13920, Level 16, State 1, Line 221
 Identifier 'Follows' in a MATCH clause is used with a JOIN clause or APPLY operator. JOIN and APPLY are not supported with MATCH clauses.
@@ -259,45 +321,69 @@ Msg 13920, Level 16, State 1, Line 221
 Identifier 'FollowedPerson' in a MATCH clause is used with a JOIN clause or APPLY operator. JOIN and APPLY are not supported with MATCH clauses.
 */
 
-
 --All joins to fetch extra information will need to be done like this
+WITH GraphPart AS (
+SELECT      Person.Name AS PersonName,
+            FollowedPerson.Name AS FollowedPersonName,
+			Person.FirstName
+FROM        Network.Person,
+            Network.Follows,
+            Network.Person AS FollowedPerson
+WHERE MATCH(Person-(Follows)->FollowedPerson))
+SELECT GraphPart.PersonName, GraphPart.FollowedPersonName, 
+		Colors.ColorName
+FROM   GraphPart
+        --This could also be a CTE or a real table
+		JOIN (SELECT 'blue' AS ColorName
+              UNION ALL
+              SELECT 'red') AS Colors
+		  ON CASE WHEN GraphPart.FirstName = 'Fred'
+                            THEN 'blue'
+                        ELSE 'red'
+                   END = Colors.ColorName
 
-select cast(Person.Name as nvarchar(20)) as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName,
-	   Colors.ColorName
-from   Network.Person, Network.Follows, Network.Person as FollowedPerson,
-       (select 'blue' as ColorName
-	    union all 
-		select 'red') as Colors
-where  MATCH(Person-(Follows)->FollowedPerson)
-  AND  CASE WHEN Person.FirstName = 'Fred' THEN 'blue' ELSE 'red' END =
-		Colors.ColorName;
+SELECT      CAST(Person.Name AS nvarchar(20)) AS PersonName,
+            FollowedPerson.Name AS FollowedPersonName,
+            Colors.ColorName
+FROM        Network.Person,
+            Network.Follows,
+            Network.Person AS FollowedPerson,
+(   SELECT 'blue' AS ColorName
+    UNION ALL
+    SELECT 'red') AS Colors
+WHERE MATCH(Person-(Follows)->FollowedPerson)
+               AND CASE WHEN Person.FirstName = 'Fred'
+                            THEN 'blue'
+                        ELSE 'red'
+                   END = Colors.ColorName;
 
 --and there is no way to do an outer join, so you will need to take care to write your joins safely to not lose data accidentally
 
-
 --you filter the output the same as in any query. Like to just see the people that Lou Iss follows:
+SELECT CAST(Person.Name AS nvarchar(20)) AS PersonName,
+       FollowedPerson.Name AS FollowedPersonName
+FROM   Network.Person,
+       Network.Follows,
+       Network.Person AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss' 
+    AND MATCH(Person-(Follows)->FollowedPerson);
 
-select cast(Person.Name as nvarchar(20)) as PersonName, 
-	   FollowedPerson.Name as FollowedPersonName
-from   Network.Person, Network.Follows, Network.Person as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss' --added
- and   MATCH(Person-(Follows)->FollowedPerson);
-
- /*
+/*
  PersonName           FollowedPersonName
  -------------------- ---------------------
- Lou Iss              Will Iam
+ Lou Iss              Saa Lee
  Lou Iss              Val Erry
  */
 
- --to find the parents of a row,  just reverse the arrow in the MATCH operator:
-
-select FollowedPerson.Name as Person,
-       Person.Name as Follows
-from   Network.Person, Network.Follows, Network.Person as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(Person<-(Follows)-FollowedPerson);
+--to find the parents of a row,  just reverse the arrow in the MATCH operator:
+SELECT FollowedPerson.Name AS Person, Person.Name AS Follows
+FROM   Network.Person,
+       Network.Follows,
+       Network.Person AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(Person<-(Follows)-FollowedPerson);
 
  /*
 Person    Follows	  
@@ -310,132 +396,174 @@ Fred Rick Lou Iss
 
 --you can do more than one match statement together. To make this easier, I am going to add a new node and edge to the graph for programming language like seen in Figure 2
 
- --add figure 2
+--add figure 2
 
- CREATE  table Network.ProgrammingLanguage
+CREATE TABLE Network.ProgrammingLanguage
 (
-	Name nvarchar(30) NOT NULL
-) as NODE;
+    Name nvarchar(30) NOT NULL
+)AS NODE;
 
-create table Network.ProgramsWith
-AS EDGE;
+CREATE TABLE Network.ProgramsWith AS EDGE;
 
 --load the nodes
-Insert Into Network.ProgrammingLanguage (Name)
-VALUES ('C++'),('T-SQL'),('Fortran');
+INSERT INTO Network.ProgrammingLanguage(Name)
+VALUES('C++'),
+      ('T-SQL'),
+      ('Fortran');
 
 --then load some data
 
 --just like before I will add rows like this:
-Insert into Network.ProgramsWith($from_id, $to_id)
-select (select Person.$node_id 
-		from Network.Person 
-		where Person.FirstName = 'Lou' 
-		  and Person.LastName = 'Iss') as from_id,
-	   (select ProgrammingLanguage.$node_id 
-	   from Network.ProgrammingLanguage 
-	   where ProgrammingLanguage.Name = 'T-SQL') as to_id;
+INSERT INTO Network.ProgramsWith($from_id, $to_id)
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lou'
+               AND Person.LastName = 'Iss') AS from_id,
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'T-SQL') AS to_id;
+
 
 --the rest is avaiable in the download
-Insert into Network.ProgramsWith($from_id, $to_id)
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'T-SQL')
+INSERT INTO Network.ProgramsWith($from_id, $to_id)
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'T-SQL')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Val' and Person.LastName = 'Erry'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'Fortran')
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Val'
+               AND Person.LastName = 'Erry'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'Fortran')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Lee' and Person.LastName = 'Roy'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'T-SQL')
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lee'
+               AND Person.LastName = 'Roy'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'T-SQL')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Lee' and Person.LastName = 'Roy'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'Fortran')
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Lee'
+               AND Person.LastName = 'Roy'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'Fortran')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'WIll' and Person.LastName = 'Iam'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'Fortran')
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Saa'
+               AND Person.LastName = 'Lee'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'Fortran')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Joe' and Person.LastName = 'Seph'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'C++')
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Joe'
+               AND Person.LastName = 'Seph'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'C++')
 UNION ALL
-select (select Person.$node_id from Network.Person where Person.FirstName = 'Day' and Person.LastName = 'Vid'),
-	   (select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage where ProgrammingLanguage.Name = 'T-SQL');
+SELECT (   SELECT Person.$node_id
+           FROM   Network.Person
+           WHERE  Person.FirstName = 'Day'
+               AND Person.LastName = 'Vid'),
+       (   SELECT ProgrammingLanguage.$node_id
+           FROM   Network.ProgrammingLanguage
+           WHERE  ProgrammingLanguage.Name = 'T-SQL');
 GO
+
 --now, lets see people that program with a programming language
 
-  select Person.Name as Person,
-	   ProgrammingLanguage.Name
-from   Network.Person as Person,
-		Network.ProgramsWith as ProgramsWith, 
-		Network.ProgrammingLanguage as ProgrammingLanguage
-where  Match(Person-(ProgramsWith)->ProgrammingLanguage)
-ORDER BY Person, Name;
+SELECT      Person.Name AS Person, 
+            ProgrammingLanguage.Name AS ProgrammingLanguage
+FROM        Network.Person AS Person,
+            Network.ProgramsWith AS ProgramsWith,
+            Network.ProgrammingLanguage AS ProgrammingLanguage
+WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage)
+ORDER BY    Person, Name;
 
--- you can see Val and Lee both have multiples, so they have multiple rows
--- Fred does not have any languages, so doesn't show up in the list. There
---is not a way to make Fred show up in this list without adding a "not a 
---programmr" node
-
+SELECT Person.Name AS PersonName, 
+       NULL AS ProgrammingLanguage
+FROM   Network.Person
+WHERE $node_id NOT IN (SELECT $from_id
+                       FROM   Network.ProgramsWith);
 --now we can find the people who share a programming language ability by
 --making 2 virtual copies of Person, and the edge (edges cannot be used more than one time in a query, but tables can depending on the meaning)
 
 --in the following query we are looking for 2 different people sharing one language
 
-select Person.Name as Person, Person2.Name as Person2,
-	   ProgrammingLanguage.Name
-from   Network.Person as Person, 
-       Network.Person as Person2,
-		Network.ProgramsWith as ProgramsWith, 
-		Network.ProgrammingLanguage as ProgrammingLanguage,
-		Network.ProgramsWith as ProgramsWith2 
-where  Match(Person-(ProgramsWith)->ProgrammingLanguage)
-  and  Match(Person2-(ProgramsWith2)->ProgrammingLanguage)
-  and person2.personId <> Person.personId
-ORDER BY Person, Person2, Name;
+SELECT      Person.Name AS Person,
+            Person2.Name AS Person2,
+            ProgrammingLanguage.Name AS ProgrammingLanguage
+FROM        Network.Person AS Person,
+            Network.Person AS Person2,
+            Network.ProgramsWith AS ProgramsWith,
+            Network.ProgrammingLanguage AS ProgrammingLanguage,
+            Network.ProgramsWith AS ProgramsWith2
+WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage)
+       AND MATCH(Person2-(ProgramsWith2)->ProgrammingLanguage)
+	   --every person will match themselves
+	   AND Person2.PersonId <> Person.PersonId
+	   AND Person.Name = 'Lou Iss'
+ORDER BY    Person, Person2, Name;
 
 --note that the person2 <> person line is due to the fact that person and Person2 are the same table, and we know that the same person has the same skill as themself.
 
 --You can do multiple match statements like that, but most of the time you can tie things together using the ASCII art version of the query, like this:
-
-  select Person.Name as Person, Person2.Name as Person2,
-	   ProgrammingLanguage.Name
-from   Network.Person as Person, 
-       Network.Person as Person2,
-		Network.ProgramsWith as ProgramsWith, 
-		Network.ProgrammingLanguage as ProgrammingLanguage,
-		Network.ProgramsWith as ProgramsWith2 
+SELECT      Person.Name AS Person,
+            Person2.Name AS Person2,
+            ProgrammingLanguage.Name
+FROM        Network.Person AS Person,
+            Network.Person AS Person2,
+            Network.ProgramsWith AS ProgramsWith,
+            Network.ProgrammingLanguage AS ProgrammingLanguage,
+            Network.ProgramsWith AS ProgramsWith2
 --change here
-where Match(Person-(ProgramsWith)->ProgrammingLanguage<-(ProgramsWith2)-Person2)
- and person2.personId <> Person.personId
-ORDER BY Person, Person2, Name;
+WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage<-(ProgramsWith2)-Person2)
+               AND Person2.PersonId <> Person.PersonId
+ORDER BY    Person, Person2, Name;
 
 --Now in the one MATCH expression, it expresses both sides of the equation.  Finally, since you may not be able to combine everything into one MATCH expression you can AND right in the MATCH expression:
-
- select Person.Name as Person, Person2.Name as Person2,
-	   ProgrammingLanguage.Name
-from   Network.Person as Person, 
-       Network.Person as Person2,
-		Network.ProgramsWith as ProgramsWith, 
-		Network.ProgrammingLanguage as ProgrammingLanguage,
-		Network.ProgramsWith as ProgramsWith2 
-where  Match(Person-(ProgramsWith)->ProgrammingLanguage
-             AND Person2-(ProgramsWith2)->ProgrammingLanguage)
-   and person2.personId <> Person.personId
-ORDER BY 1;
+SELECT      Person.Name AS Person,
+            Person2.Name AS Person2,
+            ProgrammingLanguage.Name
+FROM        Network.Person AS Person,
+            Network.Person AS Person2,
+            Network.ProgramsWith AS ProgramsWith,
+            Network.ProgrammingLanguage AS ProgrammingLanguage,
+            Network.ProgramsWith AS ProgramsWith2
+WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage AND Person2-(ProgramsWith2)->ProgrammingLanguage)
+               AND Person2.PersonId <> Person.PersonId
+ORDER BY    1;
 
 --In this next query, I will look for people who follow each other and share a programming language. These types of queries, with the generic many-to-many tables are part of the great power with the sql graph objects.
 
-select Person.Name as Person, Person2.Name as Person2,
-	   ProgrammingLanguage.Name
-from   Network.Person as Person, 
-       Network.Person as Person2,
-		Network.ProgramsWith as ProgramsWith, 
-		Network.ProgrammingLanguage as ProgrammingLanguage,
-		Network.ProgramsWith as ProgramsWith2,
-		Network.Follows as Follows
-where  Match(Person-(ProgramsWith)->ProgrammingLanguage)
-  and  Match(Person2-(ProgramsWith2)->ProgrammingLanguage)
-  and  Match(Person-(follows)->Person2)
-  and person2.personId <> Person.personId
-ORDER BY Person, Person2, Name;
+SELECT      Person.Name AS Person,
+            Person2.Name AS Person2,
+            ProgrammingLanguage.Name
+FROM        Network.Person AS Person,
+            Network.Person AS Person2,
+            Network.ProgramsWith AS ProgramsWith,
+            Network.ProgrammingLanguage AS ProgrammingLanguage,
+            Network.ProgramsWith AS ProgramsWith2,
+            Network.Follows AS Follows
+WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage)
+               AND MATCH(Person2-(ProgramsWith2)->ProgrammingLanguage)
+               AND MATCH(Person-(Follows)->Person2)
+               AND Person2.PersonId <> Person.PersonId
+			   AND Person.Name = 'Lou Iss'
+ORDER BY    Person, Person2, Name;
 
 /*
 Person       Person2       Name
@@ -443,7 +571,7 @@ Person       Person2       Name
 Lou Iss      Val Erry      T-SQL
 Val Erry     Lee Roy       Fortran
 Val Erry     Lee Roy       T-SQL
-Will Iam     Lee Roy       Fortran
+Saa Lee     Lee Roy       Fortran
 */
 
 --traversing paths, using shortest path
@@ -490,7 +618,7 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 Person        ConnectedPerson   Level
 ------------- ----------------- -----------
 Lou Iss       Val Erry          1
-Lou Iss       Will Iam          1
+Lou Iss       Saa Lee          1
 Lou Iss       Fred Rick         2
 Lou Iss       Lee Roy           2
 Lou Iss       Joe Seph          2
@@ -514,11 +642,11 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  Person        ConnectedPerson   Level   Path
  ------------- ----------------- ------- ---------------------------------------
  Lou Iss       Val Erry          1       Val Erry
- Lou Iss       Will Iam          1       Will Iam
- Lou Iss       Fred Rick         2       Will Iam->Fred Rick
+ Lou Iss       Saa Lee          1       Saa Lee
+ Lou Iss       Fred Rick         2       Saa Lee->Fred Rick
  Lou Iss       Lee Roy           2       Val Erry->Lee Roy
  Lou Iss       Joe Seph          2       Val Erry->Joe Seph
- Lou Iss       Lou Iss           3       Will Iam->Fred Rick->Lou Iss
+ Lou Iss       Lou Iss           3       Saa Lee->Fred Rick->Lou Iss
 
  --Note that the walk from Lou to Lee goes through Val only. On the diagram it also goes through Will. Later in in the chapter I will demonstrate how to include all walks in your output (it will not be nearly as neat and tidy as these queries!)
  --generally speaking it shouldn't make much difference to your output what nodes are included... unless you start doing aggregates on the nodes in the path... 
@@ -590,9 +718,9 @@ The initial recursive quantifier must be 1: {1, ... }.
 
 WITH BaseRows AS (
   select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
+		--LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
 		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH) as Path,
-		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
+		count(FollowedPerson.PersonId) AS WITHIN GROUP (GRAPH PATH) as Level
 from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,3})) --here

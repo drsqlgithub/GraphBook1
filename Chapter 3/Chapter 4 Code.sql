@@ -22,7 +22,9 @@ FROM Network.Person,
      Network.Person AS FollowedPerson
 WHERE MATCH(Person-(Follows)->FollowedPerson);
 GO
-SELECT *
+SELECT Person_Follows_Person.PersonId,
+       Person_Follows_Person.FollowsPersonId,
+       Person_Follows_Person.Value
 FROM  Network_UI.Person_Follows_Person
 GO
 
@@ -65,8 +67,8 @@ WHERE  Person.Name = 'Lou Iss'
 
 --As noted, this isn't a big value, but if I had a table of the id values to turn into a graph it would rock.
 INSERT INTO Network_UI.Person_Follows_Person(PersonId,FollowsPersonId,Value)
-SELECT (SELECT PersonId FROM Network.Person WHERE name = 'Lou iss'),
-	   (SELECT PersonId FROM Network.Person WHERE name = 'Joe Seph'),
+SELECT (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Lou iss'),
+	   (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Joe Seph'),
 	   10
 GO
 --run the query again, and you will see the new row.
@@ -75,15 +77,15 @@ GO
 --As I should have said earlier (and will), edge objects cannot have their $from_id or $to_id values updated. And this makes good sense. but let's say you want to update the value to be 1, to match all of our other data.
 
 UPDATE Network_UI.Person_Follows_Person
-set Value = 1
-where PersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Lou iss')
-and FollowsPersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Joe Seph')
+set Person_Follows_Person.Value = 1
+where PersonId = (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Lou iss')
+and Person_Follows_Person.FollowsPersonId = (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Joe Seph')
 GO
 
 --this works great because you are only updating data from one table in your update. Any attempt to change the key values will fail as:
 UPDATE Network_UI.Person_Follows_Person
-set Value = 1,
-    PersonId = 0
+set Person_Follows_Person.Value = 1,
+    Person_Follows_Person.PersonId = 0
 
 /*
 Returns:
@@ -98,8 +100,8 @@ View or function 'Network_UI.Person_Follows_Person' is not updatable because the
 --Deletes however, make perfect sense, but definitely need a trigger because it will appear as if you want to delete rows from multiple tables.
 
 DELETE FROM Network_UI.Person_Follows_Person
-where PersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Lou iss')
-and FollowsPersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Joe Seph');
+where PersonId = (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Lou iss')
+and Person_Follows_Person.FollowsPersonId = (SELECT Person.PersonId FROM Network.Person WHERE Person.Name = 'Joe Seph');
 
 --Just as before, same error 4405.  So let's build a simple instead of delete trigger object. The weird question here is "what will deleted contain?". Let's see
 
@@ -120,8 +122,12 @@ GO
 --execute the following statement, and you will see that the deleted table contains the data from the view.
 
 DELETE FROM Network_UI.Person_Follows_Person
-where PersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Lou iss')
-and FollowsPersonId = (SELECT PersonId FROM Network.Person WHERE name = 'Joe Seph');
+WHERE PersonId = (   SELECT Person.PersonId
+                     FROM   Network.Person
+                     WHERE  Person.Name = 'Lou iss')
+    AND Person_Follows_Person.FollowsPersonId = (   SELECT Person.PersonId
+                                                    FROM   Network.Person
+                                                    WHERE  Person.Name = 'Joe Seph');
 /*
 PersonId    FollowsPersonId Value
 ----------- --------------- -----------
@@ -150,8 +156,8 @@ GO
 --Now you can delete the data in a straightforward manner (I will use the Id values we got from the query earlier)
 
 DELETE FROM Network_UI.Person_Follows_Person
-where PersonId = 2
-and FollowsPersonId = 6;
+where Person_Follows_Person.PersonId = 2
+and Person_Follows_Person.FollowsPersonId = 6;
 
 --after deleting in the rows, you can see the row is gone. Be sure and test with creating and deleting multiple rows when you build triggers.
 
@@ -185,9 +191,9 @@ GO
 
 
 WITH Here AS (
-select $node_id as node_id
+select Person.$node_id as node_id
 from   Network.Person 
-where  name IN ('Fred Rick','Lou Iss','Joe Seph')
+where  Person.Name IN ('Fred Rick','Lou Iss','Joe Seph')
 )
 insert into Network.Follows(
 		$from_id, $to_id, Value)
@@ -197,9 +203,9 @@ from   Here
 where  Location.Name = 'Here'
 
 WITH Here AS (
-select $node_id as node_id
+select Person.$node_id as node_id
 from   Network.Person 
-where  name IN ('Will Iam','Lee Roy','Day Vid')
+where  Person.Name IN ('Will Iam','Lee Roy','Day Vid')
 )
 insert into Network.Follows(
 		$from_id, $to_id, Value)
@@ -218,7 +224,7 @@ where  Match(Person-(Follows)->Location)
 
 select Person.Name, Nodes.ObjectName, Nodes.Name
 from   Network.Person, Network.Follows, 
-       (SELECT 'Location' as ObjectName,Name
+       (SELECT 'Location' as ObjectName,Location.Name
 	   FROM   Network.Location
 	   union all
 	   Select 'Person',Name
@@ -255,10 +261,10 @@ from   Network.Person,
 			   Name from Network.Person
 	    UNION ALL
 		SELECT 'ProgrammingLanguage',
-				Name from Network.ProgrammingLanguage
+				ProgrammingLanguage.Name from Network.ProgrammingLanguage
 		UNION ALL
 		SELECT 'Location',
-		        Name from Network.Location) as OtherThing
+		        Location.Name from Network.Location) as OtherThing
 where  MATCH(Person-(LinksTo)->OtherThing)
   and Person.Name = 'Lou Iss'
 
@@ -280,13 +286,13 @@ GO
 CREATE VIEW Network.Anything
 as 
   SELECT 'Person' as ObjectType,
-          Name from Network.Person
+          Person.Name from Network.Person
   UNION ALL
   SELECT 'ProgrammingLanguage',
-			Name from Network.ProgrammingLanguage
+			ProgrammingLanguage.Name from Network.ProgrammingLanguage
   UNION ALL
   SELECT 'Location',
-		  Name from Network.Location
+		  Location.Name from Network.Location
 GO
 --Excute the query to get the same example as the one with derived tables.
 
@@ -364,38 +370,38 @@ ALTER TABLE Network.Follows DROP EC_Follows
 
 --Ok, now let's delete one of the location rows (not needed for our ultimate goal, but I am doing it here to show you what happens without a constraint.
 DELETE Network.Location
-where  Name = 'Here'
+where  Location.Name = 'Here'
 
 --Looking at the data, something is odd now:
 
-select *
+select Location.LocationId, Location.Name
 from   Network.Location
 
 --There is only the one location. If you look at the following query:
 
-select $to_id, count(*)
+select Follows.$to_id, count(*)
 from   Network.Follows
-where  $to_id like '%location%'
-group by $to_id
+where  Follows.$to_id like '%location%'
+group by Follows.$to_id
 
 --You will see 2 rows (with 3 for the second column of both, most likely... since we haven't protected against duplicates yet, you might have done what I did and added extras).
 
 --You can find the offending row using a bit more messy query, assuming you know the table you expect the issue to be from. If you have a bunch of tables it can be a challenge
 
-select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
-        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
-		$to_id
+select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)),
+		Follows.$to_id
 from   Network.Follows
-where  $to_id not in (select $node_id from Network.Person
+where  Follows.$to_id not in (select Person.$node_id from Network.Person
 					  union all
-					  select $node_id from Network.ProgrammingLanguage
+					  select ProgrammingLanguage.$node_id from Network.ProgrammingLanguage
 					  union all
 					  select $node_id from Network.Location)
 
 --This will tell you the object where the key values come from and the key value so you can delete the edges.
 
 DELETE Network.Follows
-where  $to_id = '{"type":"node","schema":"Network","table":"Location","id":0}'
+where  Follows.$to_id = '{"type":"node","schema":"Network","table":"Location","id":0}'
 
 --Now lets put the edge constraint back on with the two tables, but this time with CASCADE.
 
@@ -404,12 +410,12 @@ add constraint EC_Follows CONNECTION (Network.Person TO Network.Location, Networ
 
 --now just delete the Locations rows and the rows will be gone from the edge
 
-select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
-        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
+select OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)),
 		COUNT(*)
 from   Network.Follows
-GROUP BY OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)),
-        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($to_id))
+GROUP BY OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)),
+        OBJECT_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id))
 
 delete from Network.Location;
 
@@ -439,9 +445,9 @@ Values ('Here'),('There');
 --Load the data back
 
 WITH Here AS (
-select $node_id as node_id
+select Person.$node_id as node_id
 from   Network.Person 
-where  name IN ('Fred Rick','Lou Iss','Joe Seph')
+where  Person.Name IN ('Fred Rick','Lou Iss','Joe Seph')
 )
 insert into Network.LivesAt(
 		$from_id, $to_id)
@@ -452,9 +458,9 @@ where  Location.Name = 'Here'
 
 
 WITH Here AS (
-select $node_id as node_id
+select Person.$node_id as node_id
 from   Network.Person 
-where  name IN ('Will Iam','Lee Roy','Day Vid')
+where  Person.Name IN ('Will Iam','Lee Roy','Day Vid')
 )
 insert into Network.LivesAt(
 		$from_id, $to_id)
@@ -516,9 +522,9 @@ EXEC Tools.GraphDB$LookupItem 1205579333, 3
 
 --While there are some indexes already on your object, for example on the LivesAt edge table we have created
 
-select name, type_desc
+select indexes.name, indexes.type_desc
 from   sys.indexes 
-where object_Id = OBJECT_ID('Network.LivesAt')
+where indexes.object_id = OBJECT_ID('Network.LivesAt')
 
 --you can see we have this GRAPH_UNIQUE_INDEX_AD2E365DF5144A62BEBC7C7260258E2A index that is on the internal graph columns, but there is not clustered index. So you could make to UNIQUE constraint clustered, or even make it the PRIMARY KEY. 
 
@@ -551,8 +557,8 @@ INSERT INTO Network.Follows
     $to_id,
     Value
 )
-SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
-	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+SELECT (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
+	   (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
 	   1
 
 --It is actually the only possible way to answer a question like this.
@@ -576,8 +582,8 @@ INSERT INTO Network.Follows
     $to_id,
     Value
 )
-SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
-	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+SELECT (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
+	   (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
 	   1
 
 --It is actually the only possible way to answer a query like this.
@@ -596,7 +602,7 @@ WHERE Person.$node_id = Follows.$from_id
 --You cannot do the following and add a check constraint, because that is not allowed.
 
 ALTER TABLE Network.Follows 
-	ADD CONSTRAINT CHKFollows_NoSelfReference CHECK ($to_id = $to_id)
+	ADD CONSTRAINT CHKFollows_NoSelfReference CHECK (Follows.$to_id = Follows.$to_id)
 
 /*
 This returns:
@@ -646,7 +652,7 @@ GO
 
 DELETE 
 FROM   Network.Follows
-WHERE  $from_id = $to_id
+WHERE  Follows.$from_id = Follows.$to_id
 
 --Now try to do the following insert:
 
@@ -656,8 +662,8 @@ INSERT INTO Network.Follows
     $to_id,
     Value
 )
-SELECT (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
-	   (SELECT $node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND LastName = 'Rick'),
+SELECT (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
+	   (SELECT Person.$node_id FROM Network.Person WHERE Person.FirstName = 'Fred' AND Person.LastName = 'Rick'),
 	   1
 /*
 Now you get this as a return:
@@ -674,43 +680,48 @@ $from_id must not equal $to_id when modifying edge
 --Metadata Roundup
 
 --List graph objects in the databse
-select object_schema_name(object_id) as schema_name,
-       name,
-	   CASE WHEN is_node = 1 THEN 'Node'
-	        WHEN is_edge = 1 THEN 'Edge'
+select object_schema_name(tables.object_id) as schema_name,
+       tables.name,
+	   CASE WHEN tables.is_node = 1 THEN 'Node'
+	        WHEN tables.is_edge = 1 THEN 'Edge'
 			ELSE 'Bad code!' END
 from   sys.tables
-where  is_node = 1
-  or   is_edge = 1;
+where  tables.is_node = 1
+  or   tables.is_edge = 1;
 
 --types of graph columns
-  select name, column_id,
-		 graph_type_desc
+  select columns.name, columns.column_id,
+		 columns.graph_type_desc
   from   sys.columns
-  where  object_id('Network.Person') = object_id
- and  graph_type_desc is not null;
+  where  object_id('Network.Person') = columns.object_id
+ and  columns.graph_type_desc is not null;
 
-   select name, column_id, 
-   case when name like '$%' then 1 else 0 end as has_pseudocolumn,
-		 graph_type_desc
+   select columns.name, columns.column_id, 
+   case when columns.name like '$%' then 1 else 0 end as has_pseudocolumn,
+		 columns.graph_type_desc
   from   sys.columns
-  where  object_id('Network.Follows') = object_id
-    and  graph_type_desc is not null;
+  where  object_id('Network.Follows') = columns.object_id
+    and  columns.graph_type_desc is not null;
 
-select OBJECT_ID_FROM_EDGE_ID($edge_id) as FollowsObjectId,
-	   GRAPH_ID_FROM_EDGE_ID($edge_id) as FollowsEdgeId,
+select OBJECT_ID_FROM_EDGE_ID(Follows.$edge_id) as FollowsObjectId,
+	   GRAPH_ID_FROM_EDGE_ID(Follows.$edge_id) as FollowsEdgeId,
 
-	   OBJECT_ID_FROM_NODE_ID($from_id) as FromObjectId,
-	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as FromObjectSchemaName,
-	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as FromObjectName,
-	   GRAPH_ID_FROM_NODE_ID($from_id) as FromGraphId,
-	   OBJECT_ID_FROM_NODE_ID($to_id) as ToObjectId,
-	   GRAPH_ID_FROM_NODE_ID($to_id) as ToGraphId,
-	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID($to_id)) as ToObjectSchemaName,
-	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID($from_id)) as ToObjectName
+	   OBJECT_ID_FROM_NODE_ID(Follows.$from_id) as FromObjectId,
+	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$from_id)) as FromObjectSchemaName,
+	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$from_id)) as FromObjectName,
+	   GRAPH_ID_FROM_NODE_ID(Follows.$from_id) as FromGraphId,
+	   OBJECT_ID_FROM_NODE_ID(Follows.$to_id) as ToObjectId,
+	   GRAPH_ID_FROM_NODE_ID(Follows.$to_id) as ToGraphId,
+	    OBJECT_SCHEMA_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$to_id)) as ToObjectSchemaName,
+	    OBJECT_NAME(OBJECT_ID_FROM_NODE_ID(Follows.$from_id)) as ToObjectName
 from   Network.Follows;
 
 --Then you can look at a row using the following (I just randomly picked out a row from the output, but often you have these values as I showed earlier in the error message)
-SELECT *
+SELECT Person.$node_id,
+       Person.PersonId,
+       Person.FirstName,
+       Person.LastName,
+       Person.Name,
+       Person.Value
 FROM   Network.Person
-where  $Node_id = NODE_ID_FROM_PARTS(581577110,5);
+where  Person.$node_id = NODE_ID_FROM_PARTS(581577110,5);
