@@ -582,17 +582,19 @@ Saa Lee     Lee Roy       Fortran
 --The syntax gets quite gnarly here, and some parts of this were not at all easy for me to learn! 
 
 --In this next query, I will do a minimal query to get the shortest path between the Lou Iss node to any other nodes that connect.
- select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH)
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
+SELECT Person.Name,
+       LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH) AS ConnectedPerson
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
 
  --let's break this down to the base parts as several things change
  --
 
-
- --showing how you can do LAST_VALUE to multiple columns
+  --showing how you can do LAST_VALUE to multiple columns
  select Person.Name as Person,
 		CONCAT(
 		LAST_VALUE(FollowedPerson.Firstname) WITHIN GROUP (GRAPH PATH),
@@ -604,13 +606,15 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
  --now lets add a bit to the output. You can do aggregates such as count. Count is the standard way to get the number of hops between nodes. For example:
 
-   select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
-
+SELECT Person.Name AS Person,
+       LAST_VALUE(FollowedPerson.Name)  WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
+       COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
  /*
  In the output you can see that Val and Will are directly connected to Lou, so 1 hop
  Fred, Joe, and Lee are 2. And it is 3 hops to get back to Lou (showing the graph is cyclic back to Lou, something I will use when protecting against cyclic graphs later)
@@ -629,13 +633,14 @@ Lou Iss       Lou Iss           3
 --next I will add one of the most useful tools you have when debugging this code. The node labels of each node in the walk represented in the shortest path output.
 --this is done using STRING_AGG, and it demonstrates in the clearest manner how this algorithm is recursive.
 
-  select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH) as Path
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
+SELECT Person.Name,
+       STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP(GRAPH PATH) AS Path
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
 
  /*
  added to the output from the rep
@@ -654,16 +659,16 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 --When I created the graph, I included value columns on each edge and node to let us see how they compare to the count(*) output since each value is 1. 
 */
 
-  select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
-		SUM(FollowedPerson.Value) WITHIN GROUP (GRAPH PATH) as SumNodeValues,
-		--NOTE: Figure out why this is equal. More are being included or not enoiugh
-		SUM(Follows.Value) WITHIN GROUP (GRAPH PATH) as SumEdgeValues
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson 
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
+SELECT STRING_AGG(FollowedPerson.Name, '->')WITHIN GROUP(GRAPH PATH) AS Path,
+       COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level,
+       SUM(FollowedPerson.Value) WITHIN GROUP (GRAPH PATH) as SumNodeValues,
+	   SUM(Follows.Value) WITHIN GROUP (GRAPH PATH) as SumEdgeValues
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
 
 --the output of this query has 2 new columns that the same value as the level.. You can see in the following output, where I added the extra values, that the sum doesn't include the base node:
 
@@ -689,24 +694,27 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 --You control the number of levels to search (which can be really important with some very large networks, in the SHORTEST_PATH syntax.
 
 --show everyone linked at any level, along with their path
-  select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
-		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+)); --highlight
+SELECT STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
+		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as LEVEL
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+)); --highlight
 
  --The plus goes all the way to the end of the structure, but if you want to limit the level to 2, you can use this syntax
 
   --show everyone linked at level 1 or 2, along with their path
-  select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
-		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,2})); --here
+--show everyone linked at any level, along with their path
+SELECT STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
+		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,2})); --here
 
  --note that you can't do: 2,3, or you get the following error
  /*
@@ -716,36 +724,44 @@ The initial recursive quantifier must be 1: {1, ... }.
 
 ---if you want 2 or 3 you can't use a having clause, you have to use a CTE
 
+
 WITH BaseRows AS (
-  select Person.Name as Person,
-		--LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH) as Path,
-		count(FollowedPerson.PersonId) AS WITHIN GROUP (GRAPH PATH) as Level
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,3})) --here
+SELECT STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP 
+                                            (GRAPH PATH) AS Path,
+       COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) 
+                                                         AS LEVEL
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(
+         SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,3}))
  ) 
- select *
- from   BaseRows
- where  Level Between 2 and 3;
+SELECT *
+FROM   BaseRows
+WHERE  Level BETWEEN 2 AND 3;
 
 
  --several filters will need to be handled in a CTE Like if you just want to see links from Lou Iss to Lee Roy
 
- WITH BaseRows AS (
-  select Person.Name as Person,
-		LAST_VALUE(FollowedPerson.Name) AS WITHIN GROUP (GRAPH PATH) as ConnectedPerson,
-		STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH) as Path,
-		count(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as Level
-from   Network.Person as Person, Network.Follows for path as Follows, Network.Person for path as FollowedPerson
-where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
- and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,3})) --here
+WITH BaseRows AS (
+SELECT LAST_VALUE(FollowedPerson.Name) WITHIN GROUP (GRAPH PATH)
+                                                AS ConnectedPerson,
+	   STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP 
+                                            (GRAPH PATH) AS Path
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(
+         SHORTEST_PATH(Person(-(Follows)->FollowedPerson){1,3}))
  ) 
- select *
- from   BaseRows
- where  Level Between 2 and 3
-    and  ConnectedPerson = 'Lee Roy'; --probably ought to use a surrogate or name parts
-                                   --here in production code
+SELECT Path
+FROM   BaseRows
+WHERE ConnectedPerson = 'Lee Roy'; --probably ought to use a surrogate or name parts
+--here in production code
 GO
 
 
@@ -797,12 +813,7 @@ AS (
 				--this is the part that stops recursion
                 AND NOT BaseRows.IdPath LIKE CONCAT('%\', FollowedPerson.PersonId, '\%')
                 AND BaseRows.level <= @MaxLevel)
-SELECT BaseRows.PersonId,
-       BaseRows.FollowsPersonId,
-       BaseRows.Name,
-       BaseRows.Path,
-       BaseRows.IdPath,
-       BaseRows.level
+SELECT BaseRows.Path
 FROM BaseRows
 WHERE BaseRows.Name = 'Lee Roy';
 GO
@@ -853,13 +864,63 @@ AS (SELECT Person.PersonId,
                                                     FollowedPerson.PersonId,
                                                     '\%')
                    AND BaseRows.level < 10)
-SELECT BaseRows.PersonId,
-       BaseRows.FollowsPersonId,
-       BaseRows.Name,
-       BaseRows.Path,
-       BaseRows.IdPath,
-       BaseRows.level,
+SELECT BaseRows.Path,
        BaseRows.WeightedCost,
        BaseRows.NodeSum
 FROM   BaseRows
 WHERE  BaseRows.Name = 'Lee Roy';
+GO
+
+
+--Finally, this example shows adding sums for weighting as noted
+
+DECLARE @FirstName NVARCHAR(100) = N'Lou';
+DECLARE @LastName NVARCHAR(100) = N'Iss';
+
+DECLARE @ToFirstName NVARCHAR(100) = N'Lee';
+DECLARE @ToLastName NVARCHAR(100) = N'Roy';
+
+
+DECLARE @MaxLevel INT = 4;
+
+WITH BaseRows
+AS (SELECT Person.PersonId,
+           Person.PersonId AS FollowsPersonId,
+           Person.Name,
+           CAST(Person.Name AS nvarchar(4000)) AS Path,
+           CAST(CONCAT('\', Person.PersonId, '\') AS varchar(8000)) AS IdPath,
+           0 AS level,
+           0 AS WeightedCost,      --edge sums
+           Person.Value AS NodeSum --node sums
+    FROM   Network.Person
+    WHERE  Person.FirstName = @FirstName
+        AND Person.LastName = @LastName
+    UNION ALL
+    SELECT      Person.PersonId AS PersonId,
+                FollowedPerson.PersonId AS FollowsPersonId,
+                FollowedPerson.Name,
+                BaseRows.Path + '>' + FollowedPerson.Name,
+                BaseRows.IdPath
+                + CAST(FollowedPerson.PersonId AS varchar(10)) + '\',
+                BaseRows.level + 1,
+
+                --add the values in each iteration
+                BaseRows.WeightedCost + Follows.Value,
+                BaseRows.NodeSum + FollowedPerson.Value
+    FROM        Network.Person,
+                Network.Follows,
+                Network.Person AS FollowedPerson,
+                BaseRows
+    WHERE MATCH(Person-(Follows)->FollowedPerson)
+                   AND BaseRows.FollowsPersonId = Person.PersonId
+                   AND NOT BaseRows.IdPath LIKE CONCAT(
+                                                    '%\',
+                                                    FollowedPerson.PersonId,
+                                                    '\%')
+                   AND BaseRows.level < 10)
+SELECT TOP 1 WITH TIES BaseRows.Path,
+       BaseRows.WeightedCost,
+       BaseRows.NodeSum
+FROM   BaseRows
+WHERE  BaseRows.Name = 'Lee Roy'
+ORDER BY BaseRows.WeightedCost ASC;
