@@ -1,0 +1,388 @@
+<?xml version="1.0"?>
+<SqlWorkbenchSqlProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="HowToOptimizeAHierarchy">
+  <Items>
+    <LogicalFolder Name="Connections" Type="2" Sorted="true">
+      <Items>
+        <ConnectionNode Name="(local):WIN-2MKDE8JMT2M\Administrator">
+          <Created>2019-03-01T14:26:26.6981538-05:00</Created>
+          <Type>SQL</Type>
+          <Server>(local)</Server>
+          <UserName />
+          <Authentication>Windows Authentication</Authentication>
+          <InitialDB />
+          <LoginTimeout>30</LoginTimeout>
+          <ExecutionTimeout>0</ExecutionTimeout>
+          <ConnectionProtocol>NotSpecified</ConnectionProtocol>
+          <ApplicationName>Microsoft SQL Server Management Studio - Query</ApplicationName>
+        </ConnectionNode>
+      </Items>
+    </LogicalFolder>
+    <LogicalFolder Name="Queries" Type="0" Sorted="true">
+      <Items>
+        <FileNode Name="000-Create The Database.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>000-Create The Database.sql</FullPath>
+        </FileNode>
+        <FileNode Name="101-AdjacencyList-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>101-AdjacencyList-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="102-AdjacencyListQueries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>102-AdjacencyListQueries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="103-AdjacencyList-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>103-AdjacencyList-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="104-AdjacencyList-LargeDemoData.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>104-AdjacencyList-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="105-AdjacencyList-Very Wide.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>105-AdjacencyList-Very Wide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="106-AdjacencyList-VeryDeep.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>106-AdjacencyList-VeryDeep.sql</FullPath>
+        </FileNode>
+        <FileNode Name="111-TreeInGraph-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>111-TreeInGraph-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="112-TreeInGraph-ListQueries.sql.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>112-TreeInGraph-ListQueries.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="113-TreeInGraph-PerformanceCheck.sql.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>113-TreeInGraph-PerformanceCheck.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="114-TreeInGraph-LargeDemoData.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>114-TreeInGraph-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="115-TreeInGraph-VeryWide.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:(local):True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>(local)</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>115-TreeInGraph-VeryWide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="116-TreeInGraph-VeryDeep.sql.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>116-TreeInGraph-VeryDeep.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="201-HierarchyId-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>201-HierarchyId-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="202-HierarchyId-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>202-HierarchyId-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="203-HierarchyId-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>203-HierarchyId-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="204-HierarchyId-LargeDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>204-HierarchyId-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="205-HierarchyId-VeryWide.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>205-HierarchyId-VeryWide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="206-HierarchyId-VeryDeep.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>206-HierarchyId-VeryDeep.sql</FullPath>
+        </FileNode>
+        <FileNode Name="301-PathMethod-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>301-PathMethod-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="302-PathMethod-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>302-PathMethod-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="303-PathMethod-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>303-PathMethod-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="304-PathMethod-LargeDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>304-PathMethod-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="305-PathMethod-Very Wide.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>305-PathMethod-Very Wide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="306-PathMethod-VeryDeep.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>306-PathMethod-VeryDeep.sql</FullPath>
+        </FileNode>
+        <FileNode Name="401-NestedSets-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>401-NestedSets-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="402-NestedSets-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>402-NestedSets-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="403-NestedSets-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>403-NestedSets-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="404-NestedSets-LargeDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>404-NestedSets-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="405-NestedSets-Very Wide.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>405-NestedSets-Very Wide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="406-NestedSets-Very Deep.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>406-NestedSets-Very Deep.sql</FullPath>
+        </FileNode>
+        <FileNode Name="501-KimballHelper-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>501-KimballHelper-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="502-KimballHelper-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>502-KimballHelper-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="503-KimballHelper-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>503-KimballHelper-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="504-KimballHelper-AllDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>504-KimballHelper-AllDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="600-GraphRelational.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>600-GraphRelational.sql</FullPath>
+        </FileNode>
+        <FileNode Name="601-GraphRelationalQueries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>601-GraphRelationalQueries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="700-GraphTable.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>700-GraphTable.sql</FullPath>
+        </FileNode>
+        <FileNode Name="701-GraphTableQueries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>701-GraphTableQueries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="750-GraphTable-TreeWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>750-GraphTable-TreeWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="751-GraphTable-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>751-GraphTable-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="801-GappedNestedSets-BaseWithSmallData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>801-GappedNestedSets-BaseWithSmallData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="802-GappedNestedSets-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>802-GappedNestedSets-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="803-GappedNestedSets-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>803-GappedNestedSets-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="804-GappedNestedSets-LargeDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>804-GappedNestedSets-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="805-GappedNestedSets-Very Wide.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>805-GappedNestedSets-Very Wide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="806-GappedNestedSets-Very Deep.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>806-GappedNestedSets-Very Deep.sql</FullPath>
+        </FileNode>
+        <FileNode Name="901-AdjacencyListInMem.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>901-AdjacencyListInMem.sql</FullPath>
+        </FileNode>
+        <FileNode Name="902-AdjacencyListInMem-Queries.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>902-AdjacencyListInMem-Queries.sql</FullPath>
+        </FileNode>
+        <FileNode Name="903-InMemAdjacencyList-PerformanceCheck.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>903-InMemAdjacencyList-PerformanceCheck.sql</FullPath>
+        </FileNode>
+        <FileNode Name="904-InMemAdjacencyList-LargeDemoData.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>904-InMemAdjacencyList-LargeDemoData.sql</FullPath>
+        </FileNode>
+        <FileNode Name="905-InMemAdjacencyList-Very Wide.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>905-InMemAdjacencyList-Very Wide.sql</FullPath>
+        </FileNode>
+        <FileNode Name="906-AdjacencyList-VeryDeep.sql.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>906-AdjacencyList-VeryDeep.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus1.1-Set up LargeDemoData Scenario.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus1.1-Set up LargeDemoData Scenario.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus1.2-Build LargeDemoDataScripts.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus1.2-Build LargeDemoDataScripts.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus1.3-Load LargeDemoData AdjacencyList Direct.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus1.3-Load LargeDemoData AdjacencyList Direct.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus3-Adam Machanic Query To Convert.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus3-Adam Machanic Query To Convert.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus4-Convert from Adjacency to NestedSets.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus4-Convert from Adjacency to NestedSets.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus5-Convert from Adjacency to PathMethod.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus5-Convert from Adjacency to PathMethod.sql</FullPath>
+        </FileNode>
+        <FileNode Name="Bonus6-Convert from Adjacency to HieararchyId.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>Bonus6-Convert from Adjacency to HieararchyId.sql</FullPath>
+        </FileNode>
+      </Items>
+    </LogicalFolder>
+    <LogicalFolder Name="Miscellaneous" Type="3" Sorted="true">
+      <Items />
+    </LogicalFolder>
+  </Items>
+</SqlWorkbenchSqlProject>
