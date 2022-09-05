@@ -1,45 +1,73 @@
 use GraphDBTests
 GO
 
---the interesting for reuse stuff starts here!
+--The following code is interesting for reuse if you are building a system. Note that I have omitted some error handling for clarity of the demos, but I have tried to always include transactions and a TRY CATCH block so the code is minimally acceptable for even production systems. 
 
---note that I have omitted error handling for clarity of the demos. The code included is almost always strictly
---limited to the meaty bits
+--To start out, we need to be able to insert nodes. Some of the techniques we looked at in Chapter 4 will not be used in this section because this code is going to simulate a more natural process of creating rows as the customer might do it in reality. Fetching the node structures in each call in a procedure is perfectly adequate.
 
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$Insert
+CREATE OR ALTER PROCEDURE SqlGraph.Company$Insert
 (
-    @Name              varchar(20),
-    @ParentCompanyName varchar(20)
+    @Name              varchar(20), --using natural key values to be a bit more natural
+    @ParentCompanyName varchar(20)  --and to make sure surrogate values needn't always be the same
 )
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    --Sparse error handling for readability, implement error handling if done for real
+	BEGIN TRY
+		BEGIN TRANSACTION
 
-	DECLARE @ParentNode nvarchar(1000) = (SELECT $node_id FROM TreeInGraph.Company WHERE name = @ParentCompanyName);     
+		--fetch the parent of the node
+		DECLARE @ParentNode nvarchar(1000) = (SELECT $node_id FROM SqlGraph.Company WHERE name = @ParentCompanyName);     
 
-    IF @ParentCompanyName IS NOT NULL
-        AND @ParentNode IS NULL
-        THROW 50000, 'Invalid parentCompanyName', 1;
-    ELSE
-		BEGIN
-			--insert done by simply using the Name of the parent to get the key of 
-			--the parent...
-			INSERT INTO TreeInGraph.Company(Name)
-			SELECT @Name;
+		IF @ParentCompanyName IS NOT NULL AND @ParentNode IS NULL
+			THROW 50000, 'Invalid parentCompanyName', 1;
+		ELSE
+			BEGIN
+				--insert done by simply using the Name of the parent to get the key of 
+				--the parent...
+				INSERT INTO SqlGraph.Company(Name)
+				SELECT @Name;
 			
-			IF @ParentNode IS NOT NULL
-             BEGIN
-				DECLARE @ChildNode nvarchar(1000) = (SELECT $node_id FROM TreeInGraph.Company WHERE name = @Name);
+				IF @ParentNode IS NOT NULL
+				 BEGIN
+					DECLARE @ChildNode nvarchar(1000) = (SELECT $node_id 
+														 FROM SqlGraph.Company 
+														 WHERE name = @Name);
 
-				INSERT INTO TreeInGraph.CompanyEdge ($from_id, $to_id) VALUES (@ChildNode,@ParentNode);
-			 END;
-		END
+					INSERT INTO SqlGraph.CompanyEdge ($from_id, $to_id) 
+					VALUES (@ParentNode, @ChildNode);
+				 END;
+			END
+			COMMIT TRANSACTION
+	END TRY
+	BEGIN CATCH
+			IF XACT_STATE() <> 0
+				ROLLBACK TRANSACTION;
+			THROW; --just rethrow the error
+	END CATCH;
 
 END;
 GO
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$Reparent
+
+--Recall from chapter ?, where I introduced tree structures, I started out with this structure (that I will repeat here as Figure 5-1. This is the exact same base script as I will use for every structure, with the only difference being the schema being named for the technique. So let me load the first set of nodes that are not leaf nodes.
+
+EXEC SqlGraph.Company$Insert @Name = 'Company HQ', @ParentCompanyName = NULL;
+
+EXEC SqlGraph.Company$Insert @Name = 'Maine HQ', @ParentCompanyName = 'Company HQ';
+
+EXEC SqlGraph.Company$Insert @Name = 'Tennessee HQ', @ParentCompanyName = 'Company HQ';
+
+EXEC SqlGraph.Company$Insert @Name = 'Nashville Branch', @ParentCompanyName = 'Tennessee HQ';
+GO
+--Looking at the data:
+SELECT * FROM SqlGraph.Company;
+SELECT * FROM SqlGraph.CompanyEdge;
+
+--You will see that you have 4 nodes and 3 edges. CompanyHQ's internal id value is 0 (assuming you don't have any errors, which I have had many times and regenerated so I can get the ideal output.
+
+
+CREATE OR ALTER PROCEDURE SqlGraph.Company$Reparent
 (
     @Name                 varchar(20),
     @NewParentCompanyName varchar(20)
@@ -53,24 +81,24 @@ BEGIN
 			@ToId nvarchar(1000)
 	
 	SELECT @FromId = $node_id
-	FROM   TreeinGraph.Company
+	FROM   SqlGraph.Company
 	WHERE  name = @Name
 
 	SELECT @ToId = $node_id
-	FROM   TreeinGraph.Company
+	FROM   SqlGraph.Company
 	WHERE  name = @NewParentCompanyName
 
-	DELETE TreeInGraph.CompanyEdge
+	DELETE SqlGraph.CompanyEdge
 	WHERE  $from_id = @FromId
 
-	INSERT INTO TreeInGraph.CompanyEdge($From_id, $to_id)
+	INSERT INTO SqlGraph.CompanyEdge($From_id, $to_id)
 	VALUES (@FromId, @ToId)
 	
 
     ----move the Company to a new parent. Very simple with adjacency list
-    --UPDATE TreeInGraph.Company
+    --UPDATE SqlGraph.Company
     --SET    ParentCompanyId = (   SELECT CompanyId AS ParentCompanyId
-    --                             FROM   TreeInGraph.Company
+    --                             FROM   SqlGraph.Company
     --                             WHERE  Company.Name = @NewParentCompanyName)
     --WHERE  Name = @Name;
 
@@ -78,7 +106,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$Delete
+CREATE OR ALTER PROCEDURE SqlGraph.Company$Delete
     @Name                varchar(20),
     @DeleteChildRowsFlag bit = 0
 AS
@@ -95,15 +123,15 @@ BEGIN
 		DECLARE @CompanyId nvarchar(1000)
 	
 		SELECT @CompanyId = $node_id
-		FROM   TreeinGraph.Company
+		FROM   SqlGraph.Company
 		WHERE  name = @Name
 
 		BEGIN TRANSACTION
 
-		DELETE TreeInGraph.CompanyEdge
+		DELETE SqlGraph.CompanyEdge
         WHERE  $from_id = @CompanyId;
 
-		DELETE TreeInGraph.Company
+		DELETE SqlGraph.Company
         WHERE $node_id = @CompanyId;
 
 		COMMIT TRANSACTION
@@ -126,9 +154,9 @@ BEGIN
 				  ParentCompany.CompanyId AS ParentCompanyId,
 				  1 AS TreeLevel,
 				  CASE WHEN ParentCompany.CompanyId IS NOT NULL THEN '..' ELSE '' END + '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
-		   FROM   TreeInGraph.Company
-					LEFT OUTER JOIN TreeInGraph.CompanyEdge
-						JOIN TreeInGraph.Company AS ParentCompany
+		   FROM   SqlGraph.Company
+					LEFT OUTER JOIN SqlGraph.CompanyEdge
+						JOIN SqlGraph.Company AS ParentCompany
 							ON ParentCompany.$node_id = CompanyEdge.$from_id
 						ON CompanyEdge.$from_id = Company.$node_id
 		   WHERE Company.Name = @Name
@@ -141,11 +169,11 @@ BEGIN
 					FromCompany.CompanyId,
 					TreeLevel + 1 as TreeLevel,
 					Hierarchy + cast(ToCompany.CompanyId AS varchar(20)) + '\'  as Hierarchy
-			 FROM   CompanyHierarchy, TreeInGraph.Company	AS FromCompany,
+			 FROM   CompanyHierarchy, SqlGraph.Company	AS FromCompany,
 					 --Cannot mix joins
 					 --JOIN SocialGraph.Person	AS FromPerson
 						--ON FromPerson.UserName = PersonHierarchy.UserName,
-					TreeInGraph.CompanyEdge,TreeInGraph.Company	AS ToCompany
+					SqlGraph.CompanyEdge,SqlGraph.Company	AS ToCompany
 			 WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
 			   AND MATCH(ToCompany-(CompanyEdge)->FromCompany)
 
@@ -154,20 +182,20 @@ BEGIN
 		--Company Name
 		SELECT  Company.$node_id AS CompanyNodeId
 		INTO    #deleteThese
-		FROM     TreeInGraph.Company
+		FROM     SqlGraph.Company
 				 INNER JOIN CompanyHierarchy
 					 ON Company.CompanyId = CompanyHierarchy.CompanyId
 		ORDER BY Hierarchy;
 
 		BEGIN TRANSACTION
 
-		DELETE TreeInGraph.CompanyEdge
+		DELETE SqlGraph.CompanyEdge
         WHERE  $from_id IN (SELECT CompanyNodeId FROM #deleteThese)
 		  
-		DELETE TreeInGraph.CompanyEdge
+		DELETE SqlGraph.CompanyEdge
         WHERE  $to_id IN (SELECT CompanyNodeId FROM #deleteThese)
 		  
-		DELETE TreeInGraph.Company
+		DELETE SqlGraph.Company
         WHERE $node_id IN (SELECT CompanyNodeId FROM #deleteThese)
 
 		COMMIT TRANSACTION
@@ -181,14 +209,14 @@ GO
 
 
 
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$ReturnHierarchy_CTE
+CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_CTE
 (
 	@CompanyName varchar(20)
 )
 AS 
 
 DECLARE @CompanyId int = (   SELECT Company.CompanyId
-                             FROM   TreeInGraph.Company
+                             FROM   SqlGraph.Company
                              WHERE  Name = @CompanyName);
 
 --this is the MOST complex method of querying the Hierarchy, by far...
@@ -203,7 +231,7 @@ AS (
          NULL AS ParentCompanyId,
           1 AS TreeLevel,
            '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
-   FROM   TreeInGraph.Company
+   FROM   SqlGraph.Company
    WHERE  Company.CompanyId = @CompanyId
 
    UNION ALL
@@ -214,11 +242,11 @@ AS (
 			FromCompany.CompanyId,
             TreeLevel + 1 as TreeLevel,
             Hierarchy + cast(ToCompany.CompanyId AS varchar(20)) + '\'  as Hierarchy
-     FROM   CompanyHierarchy, TreeInGraph.Company	AS FromCompany,
+     FROM   CompanyHierarchy, SqlGraph.Company	AS FromCompany,
 			 --Cannot mix joins
 			 --JOIN SocialGraph.Person	AS FromPerson
 				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			TreeInGraph.CompanyEdge,TreeInGraph.Company	AS ToCompany
+			SqlGraph.CompanyEdge,SqlGraph.Company	AS ToCompany
      WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
 	   AND MATCH(FromCompany-(CompanyEdge)->ToCompany)
 
@@ -229,14 +257,14 @@ SELECT   Company.CompanyId,
          Company.Name,
          CompanyHierarchy.TreeLevel,
          CompanyHierarchy.Hierarchy
-FROM     TreeInGraph.Company
+FROM     SqlGraph.Company
          INNER JOIN CompanyHierarchy
              ON Company.CompanyId = CompanyHierarchy.CompanyId
 ORDER BY Hierarchy;
 GO
 
 
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$ReturnHierarchy_WHILELOOP
+CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_WHILELOOP
 (
 	@CompanyName varchar(20)
 )  AS 
@@ -244,7 +272,7 @@ CREATE OR ALTER PROCEDURE TreeInGraph.Company$ReturnHierarchy_WHILELOOP
 BEGIN
 
 DECLARE @CompanyId int = (   SELECT Company.CompanyId
-                             FROM   TreeInGraph.Company
+                             FROM   SqlGraph.Company
                              WHERE  Name = @CompanyName);
 
 set nocount on 
@@ -271,7 +299,7 @@ declare @treeLevel int = 1;
          NULL AS ParentCompanyId,
           1 AS TreeLevel,
            '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
-   FROM   TreeInGraph.Company
+   FROM   SqlGraph.Company
    WHERE  Company.CompanyId = @CompanyId
 
 
@@ -285,11 +313,11 @@ BEGIN
 			FromCompany.CompanyId,
             @TreeLevel + 1 as TreeLevel,
             Hierarchy + cast(ToCompany.CompanyId AS varchar(20)) + '\'  as Hierarchy
-     FROM   #HoldLevels as CompanyHierarchy, TreeInGraph.Company	AS FromCompany,
+     FROM   #HoldLevels as CompanyHierarchy, SqlGraph.Company	AS FromCompany,
 			 --Cannot mix joins
 			 --JOIN SocialGraph.Person	AS FromPerson
 				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			TreeInGraph.CompanyEdge,TreeInGraph.Company	AS ToCompany
+			SqlGraph.CompanyEdge,SqlGraph.Company	AS ToCompany
      WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
 	   AND MATCH(FromCompany-(CompanyEdge)->ToCompany)
 	   and  CompanyHierarchy.TreeLevel = @TreeLevel
@@ -310,7 +338,7 @@ SELECT   Company.CompanyId,
          Company.Name,
          CompanyHierarchy.TreeLevel,
          CompanyHierarchy.Hierarchy
-FROM     TreeInGraph.Company
+FROM     SqlGraph.Company
          INNER JOIN #HoldLevels as CompanyHierarchy
              ON Company.CompanyId = CompanyHierarchy.CompanyId
 ORDER BY Hierarchy;
@@ -319,7 +347,7 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE TreeInGraph.Company$ReturnHierarchy_SHORTESTPATH
+CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_SHORTESTPATH
 (
 	@CompanyName varchar(20)
 )  AS 
@@ -328,7 +356,7 @@ BEGIN
 	DECLARE @CompanyId int, @NodeName nvarchar(max)
 	SELECT  @CompanyId = CompanyId,
 			@Nodename = Name
-	FROM   TreeInGraph.Company
+	FROM   SqlGraph.Company
 	WHERE  Name = @CompanyName;
 
 	;WITH baseRows as
@@ -341,9 +369,9 @@ BEGIN
 		   1+COUNT(ToCompany.Name) WITHIN GROUP (GRAPH PATH) AS levels,
 		   '\' +  CAST(FromCompany.CompanyId as NVARCHAR(10)) + '\' + STRING_AGG(cast(ToCompany.CompanyId as nvarchar(10)), '\')  WITHIN GROUP (GRAPH PATH) + '\' AS hierarchy
 	FROM 
-		   TreeInGraph.Company AS FromCompany,	
-		   TreeInGraph.CompanyEdge FOR PATH AS CompanyEdge,
-		   TreeInGraph.Company FOR PATH AS ToCompany
+		   SqlGraph.Company AS FromCompany,	
+		   SqlGraph.CompanyEdge FOR PATH AS CompanyEdge,
+		   SqlGraph.Company FOR PATH AS ToCompany
 	WHERE 
 		   MATCH(SHORTEST_PATH(FromCompany(-(CompanyEdge)->ToCompany)+))
 		   AND FromCompany.CompanyId = @companyId

@@ -1,10 +1,19 @@
-/*
-This file was used to generate a data set that we will use in file 002 to performance test 
-the algorithms. I will use a pre-generated set for the demos today...
-*/
---:setvar DataSetName LargeSet
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--This file was used to generate a data set that we will use in file 002 to performance test 
+--the algorithms. The goal is to generate data-sets that can test a tree processing algorithm
+
+--the wider the tree, the more memory each iteration takes. The deeper the more iterations.. Good to test both.
+--By generating a set, it allows you to u8se that same structure to generate any type of tree structure for comparison
+--
+--in file #9002, you can generate the script to put this into one of the demo databases that we will create in the book
+
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
+:setvar DataSetName LargeSet
 --:setvar DataSetName VeryWideSet
-:setvar DataSetName VeryDeepSet
+--:setvar DataSetName VeryDeepSet
 --:setvar DataSetName HugeSet
 --:setvar DataSetName SuperHugeSet
 

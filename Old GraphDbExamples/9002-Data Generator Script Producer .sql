@@ -3,11 +3,11 @@ This file is used to generate a script that we will use in the 02 files to perfo
 the algorithms. This way we get the exact same "random" data to build our demo cases with so 
 we are comparing oranges to oranges
 */
-:setvar DataSetName SmallSet
+:setvar DataSetName VeryDeepSet
 :setvar TargetSchema AdjacencyList
 
 USE GraphDBTests_DataGenerator
-go
+GO
 SET NOCOUNT ON 
 
 SELECT 'USE GraphDBTests
