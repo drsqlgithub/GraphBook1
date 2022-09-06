@@ -10,7 +10,7 @@ DROP PROCEDURE IF EXISTS SqlGraph.Company$Insert;
 DROP FUNCTION IF EXISTS SqlGraph.Company$returnHierarchyHelper;
 DROP PROCEDURE IF EXISTS SqlGraph.Sale$InsertTestData;
 DROP TABLE IF EXISTS SqlGraph.Sale;
-DROP TABLE IF EXISTS SqlGraph.CompanyEdge;
+DROP TABLE IF EXISTS SqlGraph.ReportsTo;
 DROP TABLE IF EXISTS SqlGraph.Company;
 DROP SEQUENCE IF EXISTS SqlGraph.CompanyDataGenerator_SEQUENCE;
 
@@ -41,17 +41,17 @@ CREATE TABLE SqlGraph.Company
 ) AS NODE;
 
 --Creating the edge for a tree (as it will for a bill of materials directed acyclic graph) will all be links from a node to a node. In the edge, I will not include any columns in the edge, but you might in a real table want to include at least the time when the row was created, and maybe a time when the relationship was established (which might be the same time, but likely should not be the same column (since the relationship might have been established earlier than the row was actually created. Even on the web you might want data to go through some workflow before being inserted into your main database. Keeping this simple will just simply keep the example simple.
-CREATE TABLE SqlGraph.CompanyEdge
+CREATE TABLE SqlGraph.ReportsTo
 (
-	CONSTRAINT EC_CompanyEdge$DefinesParentOf CONNECTION (SqlGraph.Company TO SqlGraph.Company) ON DELETE NO ACTION
+	CONSTRAINT EC_ReportsTo$DefinesParentOf CONNECTION (SqlGraph.Company TO SqlGraph.Company) ON DELETE NO ACTION
 )
 AS EDGE;
 GO
 
 --Next, I am going to add a few indexes to support queries. The first is the clustered index, and for this structure I am going to cluster the table on the $to_id value. This is because the most expensive queries will be fetching rows based on the $to_id when doing breadth first queries. I am going to make it a UNIQUE constraint because for this object to be a strict tree, each $to_id should only show up once in the structure. (Note that you could implement multiple trees by adding a name for the specific structures in the object and including it in the index. I won't do that as any specific example because the code is very much the same, except for filtering on the tree you are working with. Using column values to add structures like that is less efficient, but definitely more flexible than needing a new edge object for each individual strucuture.
 
-ALTER TABLE SqlGraph.CompanyEdge ADD CONSTRAINT AKCompanyEdge UNIQUE CLUSTERED ($to_id);
-CREATE INDEX FromId ON SqlGraph.CompanyEdge($from_id);
+ALTER TABLE SqlGraph.ReportsTo ADD CONSTRAINT AKReportsTo UNIQUE CLUSTERED ($to_id);
+CREATE INDEX FromId ON SqlGraph.ReportsTo($from_id);
 
 --There will be two specific demonstrations of performance I wil be showing that you will likely need for many of your tree objects. The first is summing activity of child objects. This is analagous to a company that has sales in multiple regions. And each regions have subregions and so on down to different locations. The second scenario is finding out if you have a child in the hierarchy, and who your predecessors are in the structure. I will use my simulated data structure to demonstrate each of these scenarios. (Not only with SQL Graph, but the exact same scenarios with each algorithm with varying amounts of data)
 
