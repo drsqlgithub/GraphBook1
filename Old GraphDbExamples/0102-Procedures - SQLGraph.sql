@@ -319,7 +319,7 @@ Reparenting Nodes
 
 A common operation you might need to do a tree is to move one node to be a child of a different node. Reparenting a node in a tree using an adjaency list sort of structure (storing the edges in a simple from-to object like SQL Graph does) is generally simple. Just modify the $from_id value from one parent to another. In SQL Graph edges, you cannot modify the edge's $from_id or $to_id values, so you need to delete the original edge and create a new one. If you have data stored in the edge object, you will need to handle that in your code.
 
-For multi-step processes in T-SQL code, it is always good to use a stored procedure object, which makes it a lot easier to use a transaction in a safe manner.  In the next bit of code, I will implement the reparent code for our Company object.
+For multi-step processes in T-SQL code, it is always good to use a stored procedure object, which makes it a lot easier to use a transaction in a safe manner.  In the next bit of code, I will implement the reparent code for our Company object. Reparenting can be thought of as an edge update operation, but I generally would implement seperately from a general update procedure because you would typically want to update something like the notes about the connection of two nodes indepently from moving them to a different location in the tree. Hence the security n the reparently operation is likely to be a lot different than the normal update.
 */
 CREATE OR ALTER PROCEDURE SqlGraph.Company$Reparent
 (
@@ -427,43 +427,51 @@ AS
 
 BEGIN
 	SET NOCOUNT ON;
-	BEGIN TRY
+	BEGIN TRY;
+
+	IF @DeleteChildNodesFlag = 1 AND @ReparentChildNodesToParentFlag = 1
+		THROW 50000,'Both @DeleteChildNodesFlag and @ReparentChildNodesToParentFlag cannot be set to 1', 1;
+
 
     IF @DeleteChildNodesFlag = 1
     BEGIN
-        --deleting all of the child rows, just uses the recursive CTE with a DELETE rather than a 
-        --SELECT
 
-		--this is the MOST complex method of querying the Hierarchy, by far...
-		--algorithm is relational recursion
-
+		--use this to get all the children of node to be deleted
+		--we need not only the direct decendents (which we will use for reparenting the 
+		--child rows), but their decendents too so we can delete everything.
 		SELECT  LAST_VALUE(ReportsTo.$to_id) WITHIN GROUP (GRAPH PATH) AS  CompanyNodeId
 		INTO	#deleteThese
 		FROM    SqlGraph.Company AS Company, 
 				SqlGraph.ReportsTo FOR PATH AS ReportsTo,
 				SqlGraph.Company FOR PATH AS ReportsToCompany
 		WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-		  AND Company.Name = 'Georgia HQ' --@name
+		  AND Company.Name = 'Georgia HQ'; --@name
 
+		--this is the node that was originally requested to be deleted
 		INSERT INTO #deleteThese
-		SELECT $node_id FROM SqlGraph.Company WHERE name = @Name
+		SELECT $node_id FROM SqlGraph.Company WHERE name = @Name;
 
-		BEGIN TRANSACTION
+		--Now remove all traces of the parent and children 
+		--as a from or a to in a relationship, then remove the 
+		--company rows.
+		BEGIN TRANSACTION;
 
 		DELETE SqlGraph.ReportsTo
-        WHERE  $from_id IN (SELECT CompanyNodeId FROM #deleteThese)
+        WHERE  $from_id IN (SELECT CompanyNodeId FROM #deleteThese);
 		  
 		DELETE SqlGraph.ReportsTo
-        WHERE  $to_id IN (SELECT CompanyNodeId FROM #deleteThese)
+        WHERE  $to_id IN (SELECT CompanyNodeId FROM #deleteThese);
 
 		DELETE SqlGraph.Company
-        WHERE  $Node_id IN (SELECT CompanyNodeId FROM #deleteThese)
+        WHERE  $Node_id IN (SELECT CompanyNodeId FROM #deleteThese);
 
-		COMMIT TRANSACTION
+		COMMIT TRANSACTION;
 
     END;
 	ELSE IF @ReparentChildNodesToParentFlag = 1
 	BEGIN
+
+		--fetch the direct decendents of the row to reparent
 		SELECT $to_id AS ToId
 		INTO   #reparentThese
 		FROM   SqlGraph.ReportsTo
@@ -471,19 +479,25 @@ BEGIN
 							FROM  SqlGraph.Company
 							WHERE  Name = @Name)
 
+		--this gets the parent row where you will move the child rows
+		--to. Would not work to remove the root
 		DECLARE @NewFromId NVARCHAR(1000) = (SELECT $from_id
 											FROM   SqlGraph.ReportsTo
 											WHERE  $to_id= (SELECT $node_Id
 															FROM  SqlGraph.Company
-															WHERE  Name = @Name))
+															WHERE  Name = @Name));
+
+		--delete the reporting rows for the rows to be reparented
 		DELETE FROM SqlGraph.ReportsTo
 		WHERE  $to_id IN (SELECT ToId FROM #reparentThese)
 
+		--delete reporiting rows for the row to be deleted
 		DELETE FROM SqlGraph.ReportsTo
 		WHERE  $to_id IN (SELECT $node_Id
 							FROM  SqlGraph.Company
 							WHERE  Name = @Name)
 
+		--if the parent is not null, create new rows
 		IF @NewFromId IS NOT NULL
            INSERT INTO SqlGraph.ReportsTo
            (
@@ -492,7 +506,10 @@ BEGIN
            )
 			SELECT @NewFromId, ToId
 			FROM   #reparentThese
+		ELSE
+			THROW 50000,'The parent row did not exist, operation fails',1;
 
+		--delete the company
 		DELETE FROM SqlGraph.Company
 		WHERE  $node_id = (SELECT $node_Id
 							FROM  SqlGraph.Company
@@ -504,19 +521,21 @@ BEGIN
         --we are trusting the edge and foreign key constraint 
 		--to make sure that there are no orphaned rows
         
-		DECLARE @CompanyId nvarchar(1000)
+		DECLARE @CompanyNodeId nvarchar(1000)
 	
-		SELECT @CompanyId = $node_id
+		--fetch the node id of the company
+		SELECT @CompanyNodeId = $node_id
 		FROM   SqlGraph.Company
 		WHERE  name = @Name
 
+		--try to delete it
 		BEGIN TRANSACTION
 
 		DELETE SqlGraph.ReportsTo
-        WHERE  $to_id = @CompanyId;
+        WHERE  $to_id = @CompanyNodeId;
 
 		DELETE SqlGraph.Company
-        WHERE $node_id = @CompanyId;
+        WHERE $node_id = @CompanyNodeId;
 
 		COMMIT TRANSACTION
 
@@ -594,11 +613,12 @@ GO
 EXEC SqlGraph.Company$Delete @Name = 'Georgia HQ', @DeleteChildNodesFlag = 1;
 GO
 
-
-
 SELECT HierarchyDisplay
 FROM   SqlGraph.CompanyHierarchyDisplay
 ORDER BY Hierarchy
+
+/*
+Now you will see that the 'Georgia HQ' and 'Atlanta HQ' rows are gone.
 
 HierarchyDisplay
 ---------------------------------------
@@ -614,7 +634,8 @@ Company HQ
 --> --> Dallas Branch
 --> --> Houston Branch
 
-
+Next lets see what the @ReparentChildNodesToParentFlag does. Excuting the following code removes the 'Texas HQ' row, but now the Dallas and Houston Branch nodes will be moved up as child nodes of the 'Company HQ' node.
+*/
 EXEC SqlGraph.Company$Delete @Name = 'Texas HQ', @ReparentChildNodesToParentFlag = 1;
 
 
@@ -633,217 +654,22 @@ Company HQ
 
 --Finally, clean up the nodes that are left over from this example:
 
-
 EXEC SqlGraph.Company$Delete @Name = 'Dallas Branch'
 EXEC SqlGraph.Company$Delete @Name = 'Houston Branch'
-
-HierarchyDisplay
-------------------------------------
-Company HQ
---> Maine HQ
---> --> Camden Branch
---> --> Portland Branch
---> Tennessee HQ
---> --> Knoxville Branch
---> --> Memphis Branch
---> --> Nashville Branch
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_CTE
-(
-	@CompanyName varchar(20)
-)
-AS 
-
-DECLARE @CompanyId int = (   SELECT Company.CompanyId
-                             FROM   SqlGraph.Company
-                             WHERE  Name = @CompanyName);
-
---this is the MOST complex method of querying the Hierarchy, by far...
---algorithm is relational recursion
-
-WITH CompanyHierarchy(CompanyId, ParentCompanyId, TreeLevel, Hierarchy)
-AS (
-   --gets the top level in Hierarchy we want. The Hierarchy column
-   --will show the row's place in the Hierarchy from this query only
-   --not in the overall reality of the row's place in the table
-   SELECT Company.CompanyId,
-         NULL AS ParentCompanyId,
-          1 AS TreeLevel,
-           '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
-   FROM   SqlGraph.Company
-   WHERE  Company.CompanyId = @CompanyId
-
-   UNION ALL
-
-     --joins back to the CTE to recursively retrieve the rows 
-     --note that TreeLevel is incremented on each iteration
-     SELECT ToCompany.CompanyId, 
-			FromCompany.CompanyId,
-            TreeLevel + 1 as TreeLevel,
-            Hierarchy + cast(ToCompany.CompanyId AS varchar(20)) + '\'  as Hierarchy
-     FROM   CompanyHierarchy, SqlGraph.Company	AS FromCompany,
-			 --Cannot mix joins
-			 --JOIN SocialGraph.Person	AS FromPerson
-				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			SqlGraph.ReportsTo,SqlGraph.Company	AS ToCompany
-     WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
-	   AND MATCH(FromCompany-(ReportsTo)->ToCompany)
-
-)
---return results from the CTE, joining to the Company data to get the 
---Company Name
-SELECT   Company.CompanyId,
-         Company.Name,
-         CompanyHierarchy.TreeLevel,
-         CompanyHierarchy.Hierarchy
-FROM     SqlGraph.Company
-         INNER JOIN CompanyHierarchy
-             ON Company.CompanyId = CompanyHierarchy.CompanyId
-ORDER BY Hierarchy;
 GO
 
 
-CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_WHILELOOP
-(
-	@CompanyName varchar(20)
-)  AS 
-
-BEGIN
-
-DECLARE @CompanyId int = (   SELECT Company.CompanyId
-                             FROM   SqlGraph.Company
-                             WHERE  Name = @CompanyName);
-
-set nocount on 
---this is the MOST complex method of querying the Hierarchy, by far...
---algorithm is relational recursion
-
-create table #HoldLevels(
-CompanyId int PRIMARY KEY,
-ParentCompanyId int NULL,
-TreeLevel int not null ,
-Hierarchy nvarchar(max),
-index  viewer (companyId) include (Hierarchy, treelevel),
-index  joiner clustered (treeLevel, parentCompanyId)
-
-)
-
-declare @treeLevel int = 1;
-
-   --gets the top level in Hierarchy we want. The Hierarchy column
-   --will show the row's place in the Hierarchy from this query only
-   --not in the overall reality of the row's place in the table
-   insert into #HoldLevels (CompanyId, ParentCompanyId, TreeLevel, Hierarchy)
-   SELECT Company.CompanyId,
-         NULL AS ParentCompanyId,
-          1 AS TreeLevel,
-           '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
-   FROM   SqlGraph.Company
-   WHERE  Company.CompanyId = @CompanyId
 
 
-WHILE 1=1 
-BEGIN
-
-   --joins back to the CTE to recursively retrieve the rows 
-   --note that TreeLevel is incremented on each iteration
-   insert into #HoldLevels (CompanyId, ParentCompanyId, TreeLevel, Hierarchy)
-        SELECT ToCompany.CompanyId, 
-			FromCompany.CompanyId,
-            @TreeLevel + 1 as TreeLevel,
-            Hierarchy + cast(ToCompany.CompanyId AS varchar(20)) + '\'  as Hierarchy
-     FROM   #HoldLevels as CompanyHierarchy, SqlGraph.Company	AS FromCompany,
-			 --Cannot mix joins
-			 --JOIN SocialGraph.Person	AS FromPerson
-				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			SqlGraph.ReportsTo,SqlGraph.Company	AS ToCompany
-     WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
-	   AND MATCH(FromCompany-(ReportsTo)->ToCompany)
-	   and  CompanyHierarchy.TreeLevel = @TreeLevel
 
 
-	if @@ROWCOUNT = 0
-		BREAK
-	else
-		set @treeLevel = @treeLevel + 1
-
-END
 
 
---return results from the CTE, joining to the Company data to get the 
---Company Name
-
-SELECT   Company.CompanyId,
-         Company.Name,
-         CompanyHierarchy.TreeLevel,
-         CompanyHierarchy.Hierarchy
-FROM     SqlGraph.Company
-         INNER JOIN #HoldLevels as CompanyHierarchy
-             ON Company.CompanyId = CompanyHierarchy.CompanyId
-ORDER BY Hierarchy;
-
-END
-GO
 
 
-CREATE OR ALTER PROCEDURE SqlGraph.Company$ReturnHierarchy_SHORTESTPATH
-(
-	@CompanyName varchar(20)
-)  AS 
-BEGIN
 
-	DECLARE @CompanyId int, @NodeName nvarchar(max)
-	SELECT  @CompanyId = CompanyId,
-			@Nodename = Name
-	FROM   SqlGraph.Company
-	WHERE  Name = @CompanyName;
 
-	;WITH baseRows as
-	(
-	SELECT @companyId as CompanyId, @NodeName as Name, 1 as TreeLevel, '\' + Cast(@companyId as nvarchar(10)) + '\' as hierarchy
-	UNION ALL
-	SELECT 
-		   LAST_VALUE(ToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) AS CompanyId,
-		   LAST_VALUE(ToCompany.Name) WITHIN GROUP (GRAPH PATH) AS NodeName,
-		   1+COUNT(ToCompany.Name) WITHIN GROUP (GRAPH PATH) AS levels,
-		   '\' +  CAST(FromCompany.CompanyId as NVARCHAR(10)) + '\' + STRING_AGG(cast(ToCompany.CompanyId as nvarchar(10)), '\')  WITHIN GROUP (GRAPH PATH) + '\' AS hierarchy
-	FROM 
-		   SqlGraph.Company AS FromCompany,	
-		   SqlGraph.ReportsTo FOR PATH AS ReportsTo,
-		   SqlGraph.Company FOR PATH AS ToCompany
-	WHERE 
-		   MATCH(SHORTEST_PATH(FromCompany(-(ReportsTo)->ToCompany)+))
-		   AND FromCompany.CompanyId = @companyId
-	)
-	SELECT * I will 
-	FROM  BaseRows
-	ORDER BY hierarchy;
 
-END;
-GO
 
 
 
