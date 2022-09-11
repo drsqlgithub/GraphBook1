@@ -3,7 +3,7 @@ This file is used to generate a script that we will use in the 02 files to perfo
 the algorithms. This way we get the exact same "random" data to build our demo cases with so 
 we are comparing oranges to oranges
 */
-:setvar DataSetName VeryDeepSet
+:setvar DataSetName VeryWideSet
 :setvar TargetSchema AdjacencyList
 
 USE GraphDBTests_DataGenerator
@@ -20,7 +20,13 @@ GO'
 DECLARE @query VARCHAR(MAX);
 DECLARE @schemaName sysName = '$(TargetSchema)';
 
-SELECT @query = '
+
+
+
+SELECT @query = 
+CASE WHEN @schemaName = 'SqlGraph' THEN 'DELETE SQLGraph.ReportsTo' ELSE '' END + 
+
+'
 DELETE ' + @schemaName + '.Sale
 DELETE ' + @schemaName + '.Company 
 DBCC CHECKIDENT (' + QUOTEName(@schemaName + '.Sale','''') + ',RESEED,0)

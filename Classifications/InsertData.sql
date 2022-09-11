@@ -23,17 +23,21 @@ EXEC Resources_UI.DocumentCreate
 --	@TagList = 'Editorial'
 
 
---delete
---FROM   Classifications.Categorizes
---WHERE $edge_id IN ('{"type":"edge","schema":"Classifications","table":"Categorizes","id":6}','{"type":"edge","schema":"Classifications","table":"Categorizes","id":7}')
+INSERT INTO Classifications_UI.Tag_Categorizes_ResourcesDocument
+(
+    TagName,
+    DocumentName
+)
+VALUES
+(   'Data Science', -- TagName - nvarchar(100)
+    'Introduction to artificial intelligence'  -- DocumentName - nvarchar(100)
+    )
+SELECT *
+FROM  Classifications.Tag
+ORDER BY TagName
 
-/*
-Change Management
-CI/CD
-Containers and Virtualization
-Culture
-Data Privacy and Protection
-Database DevOps
-Software Delivery
-Testing
-Tools*/
+SELECT *
+FROM   Resources.Document
+		LEFT JOIN Classifications.Categorizes
+			ON $node_id = $to_id
+ORDER BY DocumentName
