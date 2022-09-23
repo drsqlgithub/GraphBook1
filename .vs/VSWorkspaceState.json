@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\Old GraphDbExamples"
+    "\\Chapter 3",
+    "\\Classifications",
+    "\\IMDB Project"
   ],
-  "SelectedNode": "\\Old GraphDbExamples\\0000-Tools.sql",
+  "SelectedNode": "\\Classifications\\InsertData.sql",
   "PreviewInSolutionExplorer": false
 }
