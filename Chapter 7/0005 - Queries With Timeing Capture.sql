@@ -313,6 +313,69 @@ EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
 GO
 
 
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Finding users that a person is connected to directly through interest
+--******
+----------------------------------------------------------------------------------------------------------
+
+
+EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
+                            @TestSetName = 'Finding users that a person is connected to directly through interest'
+
+SELECT Account1.AccountHandle,
+		Interest.InterestName,
+		Account2.AccountHandle
+
+FROM   SocialGraph.Account AS Account1
+                   ,SocialGraph.Account AS Account2
+				   ,SocialGraph.InterestedIn AS InterestedIn1
+				   ,SocialGraph.InterestedIn  AS InterestedIn2
+				   ,SocialGraph.Interest AS Interest
+WHERE  MATCH(Account1-(InterestedIn1)->Interest<-(InterestedIn2)-Account2)
+  AND  Account1.AccountHandle = '@Bryant_Huber'
+
+
+
+DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
+                            @TestSetName = 'Finding users that a person is connected to directly through interest',
+							@RowsAffectedCount = @RowsAffectedCount
+
+GO
+
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Finding users that a person is connected to directly through interest
+--******
+----------------------------------------------------------------------------------------------------------
+
+
+EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
+                            @TestSetName = 'Finding users that a person is connected to directly through specific interest'
+
+SELECT Account1.AccountHandle,
+		Interest.InterestName,
+		Account2.AccountHandle
+
+FROM   SocialGraph.Account AS Account1
+                   ,SocialGraph.Account AS Account2
+				   ,SocialGraph.InterestedIn AS InterestedIn1
+				   ,SocialGraph.InterestedIn  AS InterestedIn2
+				   ,SocialGraph.Interest AS Interest
+WHERE  MATCH(Account1-(InterestedIn1)->Interest<-(InterestedIn2)-Account2)
+  AND  Account1.AccountHandle = '@Bryant_Huber'
+  AND  Interest.InterestName = 'Relaxing';
+
+DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
+                            @TestSetName = 'Finding users that a person is connected to directly through specific interest',
+							@RowsAffectedCount = @RowsAffectedCount
+
+GO
+
 ----------------------------------------------------------------------------------------------------------
 --*****
 --Finding users that a person is connected through interest, two levels, initial person is not connected to many people
