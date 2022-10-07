@@ -657,10 +657,48 @@ Company HQ
 EXEC SqlGraph.Company$Delete @Name = 'Dallas Branch'
 EXEC SqlGraph.Company$Delete @Name = 'Houston Branch'
 GO
+/*
+The next two statments object I will create will be to create two fairly normal procedures that replicate typical operations you might do with a tree. First, I will create a function that will let you ask "giving one company, see if it is a child of the other in the hierarchy. Basically you just take the hierarchy query, starting at one node, then filter the output. Here is that code.
+*/
 
+CREATE OR ALTER FUNCTION SqlGraph.Company$CheckForChild
+(
+	@CompanyName varchar(20),
+	@CheckForChildOfCompanyName varchar(20)
+) 
+RETURNS BIT
+AS 
+BEGIN
 
+	DECLARE @CompanyId INT, @ChildFlag BIT = 0;
+	SELECT  @CompanyId = CompanyId
+	FROM   SqlGraph.Company
+	WHERE  Name = @CompanyName;
 
+	DECLARE @CheckForChildOfCompanyId int
+	SELECT  @CheckForChildOfCompanyId = CompanyId
+	FROM   SqlGraph.Company
+	WHERE  Name = @CheckForChildOfCompanyName;
 
+	;WITH baseRows as
+	(
+	SELECT LAST_VALUE(ToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) AS ChildCompanyId
+	FROM 
+		   SqlGraph.Company AS FromCompany,	
+		   SqlGraph.ReportsTo FOR PATH AS ReportsTo,
+		   SqlGraph.Company FOR PATH AS ToCompany
+	WHERE 
+		   MATCH(SHORTEST_PATH(FromCompany(-(ReportsTo)->ToCompany)+))
+		   AND FromCompany.CompanyId = @CheckForChildOfCompanyId
+	)	
+	SELECT @ChildFlag = 1
+	FROM  BaseRows
+	WHERE childCompanyId = @CompanyId
+
+RETURN @ChildFlag
+
+END;
+GO
 
 
 

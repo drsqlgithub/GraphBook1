@@ -129,7 +129,7 @@ AS
 	  BEGIN
 		INSERT INTO GappedNestedSets.Sale (TransactionNumber, Amount, CompanyId)
 		SELECT	CAST (NEXT VALUE FOR GappedNestedSets.CompanyDataGenerator_SEQUENCE AS varchar(10)),
-				CAST (NEXT VALUE FOR GappedNestedSets.CompanyDataGenerator_SEQUENCE AS numeric(12,2)), 
+				.25 * CAST (NEXT VALUE FOR GappedNestedSets.CompanyDataGenerator_SEQUENCE AS numeric(12,2)), 
 				(SELECT CompanyId FROM GappedNestedSets.Company WHERE Name = @Name)
 		SET @rowCount = @rowCOunt - 1
 	  END

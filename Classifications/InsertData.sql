@@ -27,13 +27,3 @@ EXEC Resources_UI.DocumentCreate
 --FROM   Classifications.Categorizes
 --WHERE $edge_id IN ('{"type":"edge","schema":"Classifications","table":"Categorizes","id":6}','{"type":"edge","schema":"Classifications","table":"Categorizes","id":7}')
 
-/*
-Change Management
-CI/CD
-Containers and Virtualization
-Culture
-Data Privacy and Protection
-Database DevOps
-Software Delivery
-Testing
-Tools*/

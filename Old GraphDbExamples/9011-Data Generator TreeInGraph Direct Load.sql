@@ -10,31 +10,31 @@ go
 
 set nocount on;
 
-DELETE TreeInGraph.Sale
-DELETE TreeInGraph.CompanyEdge
-DELETE TreeInGraph.Company 
-DBCC CHECKIDENT ('TreeInGraph.Sale',RESEED,0)
-DBCC CHECKIDENT ('TreeInGraph.Company',RESEED,0)
-ALTER SEQUENCE TreeInGraph.CompanyDataGenerator_SEQUENCE RESTART
+DELETE SqlGraph.Sale
+DELETE SqlGraph.ReportsTo
+DELETE SqlGraph.Company 
+DBCC CHECKIDENT ('SqlGraph.Sale',RESEED,0)
+DBCC CHECKIDENT ('SqlGraph.Company',RESEED,0)
+ALTER SEQUENCE SqlGraph.CompanyDataGenerator_SEQUENCE RESTART
 go
 
 
-SET IDENTITY_INSERT TreeInGraph.Company ON
+SET IDENTITY_INSERT SqlGraph.Company ON
 go
-INSERT INTO TreeInGraph.Company(CompanyId, Name)
+INSERT INTO SqlGraph.Company(CompanyId, Name)
 SELECT CAST(SUBSTRING(CHildName,5,10) AS INT) AS CompanyId,
 	   ChildName AS Name
 FROM GraphDBTests_DataGenerator.DemoCreator.Hierarchy_$(DataSetName)
 go
-SET IDENTITY_INSERT TreeInGraph.Company OFF
+SET IDENTITY_INSERT SqlGraph.Company OFF
 go
 
-insert into TreeInGraph.CompanyEdge($From_id, $To_id)
+insert into SqlGraph.ReportsTo($From_id, $To_id)
 select FromNode.$node_id, ToNode.$node_id
 from   GraphDBTests_DataGenerator.DemoCreator.Hierarchy_$(DataSetName)
-		 join TreeInGraph.Company as FromNode
+		 join SqlGraph.Company as FromNode
 			on FromNode.Name = Hierarchy_$(DataSetName).ParentName
-		 join TreeInGraph.Company as ToNode
+		 join SqlGraph.Company as ToNode
 			on ToNode.Name = Hierarchy_$(DataSetName).ChildName
 group by FromNode.$node_id, ToNode.$node_id
 --having count(*) > 1
@@ -49,11 +49,11 @@ WHILE (1=1)
 	IF @@FETCH_STATUS <> 0
 		BREAK
     
-	EXEC TreeInGraph.Sale$InsertTestData @Name = @CompanyName
+	EXEC SqlGraph.Sale$InsertTestData @Name = @CompanyName
  END
 GO
 
 SELECT COUNT(*) as CompanyCount
-FROM   TreeInGraph.Company
+FROM   SqlGraph.Company
 SELECT COUNT(*) as SalesCount
-FROM   TreeInGraph.sale
+FROM   SqlGraph.sale

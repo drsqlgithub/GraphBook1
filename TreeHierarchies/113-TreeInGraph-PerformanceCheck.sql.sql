@@ -7,10 +7,10 @@ GO
 
 DECLARE @CompanyId int = (   SELECT Company.CompanyId
                              FROM   TreeInGraph.Company
-										LEFT OUTER JOIN TreeInGraph.CompanyEdge
+										LEFT OUTER JOIN TreeInGraph.ReportsTo
 											JOIN TreeInGraph.Company AS ParentCompany
-													ON ParentCompany.$node_id = CompanyEdge.$from_id
-									ON CompanyEdge.$from_id = Company.$node_id
+													ON ParentCompany.$node_id = ReportsTo.$from_id
+									ON ReportsTo.$from_id = Company.$node_id
                              WHERE  ParentCompany.CompanyId IS NULL);
 
 --this is the MOST complex method of querying the Hierarchy, by far...
@@ -26,10 +26,10 @@ AS (
           1 AS TreeLevel,
           CASE WHEN ParentCompany.CompanyId IS NOT NULL THEN '..' ELSE '' END + '\' + CAST(Company.CompanyId AS varchar(MAX)) + '\' AS Hierarchy
    FROM   TreeInGraph.Company
-			LEFT OUTER JOIN TreeInGraph.CompanyEdge
+			LEFT OUTER JOIN TreeInGraph.ReportsTo
 				JOIN TreeInGraph.Company AS ParentCompany
-					ON ParentCompany.$node_id = CompanyEdge.$from_id
-				ON CompanyEdge.$from_id = Company.$node_id
+					ON ParentCompany.$node_id = ReportsTo.$from_id
+				ON ReportsTo.$from_id = Company.$node_id
    WHERE  Company.CompanyId = @CompanyId
 
    UNION ALL
@@ -44,9 +44,9 @@ AS (
 			 --Cannot mix joins
 			 --JOIN SocialGraph.Person	AS FromPerson
 				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			TreeInGraph.CompanyEdge,TreeInGraph.Company	AS ToCompany
+			TreeInGraph.ReportsTo,TreeInGraph.Company	AS ToCompany
      WHERE  CompanyHierarchy.CompanyId = FromCompany.CompanyId
-	   AND MATCH(ToCompany-(CompanyEdge)->FromCompany)
+	   AND MATCH(ToCompany-(ReportsTo)->FromCompany)
 
 )
 --return results from the CTE, joining to the Company data to get the 
@@ -77,10 +77,10 @@ AS (
    SELECT Company.CompanyId AS ChildCompanyId,
           Company.CompanyId AS ParentCompanyId
    FROM   TreeInGraph.Company
-			LEFT OUTER JOIN TreeInGraph.CompanyEdge
+			LEFT OUTER JOIN TreeInGraph.ReportsTo
 				JOIN TreeInGraph.Company AS ParentCompany
-					ON ParentCompany.$node_id = CompanyEdge.$from_id
-				ON CompanyEdge.$from_id = Company.$node_id
+					ON ParentCompany.$node_id = ReportsTo.$from_id
+				ON ReportsTo.$from_id = Company.$node_id
    UNION ALL
 
      --joins back to the CTE to recursively retrieve the rows 
@@ -92,9 +92,9 @@ AS (
 			 --Cannot mix joins
 			 --JOIN SocialGraph.Person	AS FromPerson
 				--ON FromPerson.UserName = PersonHierarchy.UserName,
-			TreeInGraph.CompanyEdge,TreeInGraph.Company	AS ToCompany
+			TreeInGraph.ReportsTo,TreeInGraph.Company	AS ToCompany
      WHERE ExpandedHierarchy.ChildCompanyId = FromCompany.CompanyId
-	   AND MATCH(ToCompany-(CompanyEdge)->FromCompany)
+	   AND MATCH(ToCompany-(ReportsTo)->FromCompany)
 
 ),
 
