@@ -1,7 +1,14 @@
---DROP DATABASE SocialGraph
+--run this all at once to get a new database as well as structures
 
---CREATE DATABASE SocialGraph
---GO
+ALTER DATABASE SocialGraph SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+GO
+USE tempdb
+GO
+DROP DATABASE IF EXISTS SocialGraph
+GO
+CREATE DATABASE SocialGraph
+GO
+
 
 USE SocialGraph;
 GO
@@ -31,14 +38,18 @@ CREATE TABLE SocialGraph.Account (
    CONSTRAINT PKAccount PRIMARY KEY ($node_id)
 ) AS NODE;
 
+
 CREATE TABLE SocialGraph.Follows (
    FollowTime datetime2(0) 
       CONSTRAINT DFLTFollows_FollowTime DEFAULT SYSDATETIME(),
       CONSTRAINT AKFollows_UniqueNodes UNIQUE CLUSTERED ( $from_id, $to_id),
+	  CONSTRAINT AKFollows_FromTo UNIQUE ( $to_id, $from_id),
+
 	  CONSTRAINT ECFollows_AccountToAccount 
 	    CONNECTION (SocialGraph.Account TO SocialGraph.Account) ON DELETE NO Action
 ) AS EDGE;
 GO
+
 CREATE TRIGGER SocialGraph.Follows_IU_Trigger ON SocialGraph.Follows
 AFTER INSERT, UPDATE
 AS
@@ -61,6 +72,7 @@ CREATE TABLE SocialGraph.Interest (
 CREATE TABLE SocialGraph.InterestedIn 
 (
 	CONSTRAINT AKInterestedIn_UniqueNodes UNIQUE CLUSTERED ($from_id, $to_id),
+	CONSTRAINT AKInterestedIn_ToFrom UNIQUE ($to_id, $from_id),
 	CONSTRAINT ECInterestedIn_AccountToInterestBoth 
 	     CONNECTION (SocialGraph.Account TO SocialGraph.Interest,
 		             SocialGraph.Interest TO SocialGraph.Account) ON DELETE NO ACTION,)
@@ -76,7 +88,7 @@ WHERE  COLUMNS.TABLE_SCHEMA = 'SocialGraph'
 ORDER BY COLUMNS.TABLE_NAME, ORDINAL_POSITION
 GO
 
---this procedure is to simulate a user setting up an account
+--this procedure can be used to simulate a user setting up an account
 CREATE OR ALTER PROCEDURE SocialGraph.Account$Insert
 (
     @AccountHandle			nvarchar(60),
@@ -211,6 +223,7 @@ EXEC SocialGraph.Account$InsertFollowers @AccountHandle = '@Joe',
 
 GO
 
+--used for 
 CREATE OR ALTER VIEW SocialGraph.AllNodes AS 
 	SELECT Account.AccountHandle AS Display, 'Account' AS NodeType, $node_id AS node_id
 	FROM   SocialGraph.Account
@@ -227,15 +240,16 @@ CREATE OR ALTER VIEW SocialGraph.AllEdges AS
 	FROM   SocialGraph.InterestedIn;
 GO
 
-CREATE TABLE SocialGraph.AllEdgesTable
-(
-	EdgeType nvarchar(100),
-) AS EDGE
+--experimental
+--CREATE TABLE SocialGraph.AllEdgesTable
+--(
+--	EdgeType nvarchar(100),
+--) AS EDGE
 
-INSERT INTO SocialGraph.AllEdgesTable(EdgeType, $from_id, $to_id)
-SELECT EdgeType, from_id, to_id
-FROM   SocialGraph.AllEdges
-GO
+--INSERT INTO SocialGraph.AllEdgesTable(EdgeType, $from_id, $to_id)
+--SELECT EdgeType, from_id, to_id
+--FROM   SocialGraph.AllEdges
+--GO
 
 
 

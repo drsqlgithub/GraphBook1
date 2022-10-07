@@ -15,11 +15,11 @@ FROM  Imdb.Person AS Person,
 	  Imdb.ContributedTo FOR PATH AS ContributedTo, 
 	  Imdb.ContributedTo FOR PATH AS ContributedTo2
 WHERE MATCH(SHORTEST_PATH(Person(-(ContributedTo)->Title<-(ContributedTo2)-Person2)+))
-  AND Person.PrimaryName = 'Frank Cardillo'
+  AND Person.PrimaryName = 'Kevin Bacon'
 )
 SELECT *
 FROM   BaseRows
-WHERE  ConnectedToAccountHandle = 'Kevin Bacon'
+WHERE  ConnectedToAccountHandle = 'Frank Cardillo'
 
 SELECT Person.PrimaryName, WorkedWith.TitleId,  Person2.PrimaryName
 FROM  Imdb.Person AS Person, 
@@ -44,8 +44,8 @@ SELECT *
 FROM   BaseRows
 WHERE  ConnectedToAccountHandle = 'Kevin Bacon'
 
-Msg 1105, Level 17, State 2, Line 32
-Could not allocate space for object 'dbo.SORT temporary run storage:  140739787161600' in database 'tempdb' because the 'PRIMARY' filegroup is full. Create disk space by deleting unneeded files, dropping objects in the filegroup, adding additional files to the filegroup, or setting autogrowth on for existing files in the filegroup.
+Msg 1105, LEVEL 17, STATE 2, Line 32
+Could NOT ALLOCATE SPACE FOR OBJECT 'dbo.SORT temporary run storage:  140739787161600' IN DATABASE 'tempdb' because the 'PRIMARY' FILEGROUP IS FULL. CREATE DISK SPACE BY deleting unneeded files, dropping objects IN the FILEGROUP, adding additional files TO the FILEGROUP, OR setting autogrowth ON FOR existing files IN the FILEGROUP.
 
 
 /*
@@ -80,11 +80,15 @@ FROM  Imdb.Person, Imdb.ContributedTo AS ContributedTo, Imdb.Title AS Title,
   WHERE MATCH(Person-(ContributedTo)->Title<-(ContributedTo2)-Person2)
 AND Person.PrimaryName = 'Fred Astaire';
 
-SELECT LAST_VALUE(Person2.Name) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle
-FROM  Imdb.Person, Imdb.ContributedTo FOR PATH AS ContributedTo, Imdb.Title FOR PATH AS Title, 
+SELECT TOP 10 LAST_VALUE(Person2.PrimaryName) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle
+FROM  Imdb.Person AS Person, Imdb.ContributedTo FOR PATH AS ContributedTo, Imdb.Title FOR PATH AS Title, 
 	  Imdb.ContributedTo FOR PATH AS ContributedTo2, Imdb.Person FOR PATH AS Person2
   WHERE MATCH(SHORTEST_PATH(Person(-(ContributedTo)->Title<-(ContributedTo2)-Person2)+))
 AND Person.PrimaryName = 'Fred Astaire'
+OPTION (MAXDOP 1)
+
+SELECT *
+FROM   Imdb.Person
 
 USE GraphExample
 GO

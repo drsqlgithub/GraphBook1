@@ -1,5 +1,8 @@
+USE SocialGraph
+GO
 SET NOCOUNT ON;
 DELETE FROM SocialGraph.Account
+
 
 INSERT INTO SocialGraph.Account(AccountHandle)
 VALUES
@@ -100300,3 +100303,5 @@ VALUES
 (N'@Dale_Ponce'),
 (N'@Rudy_Greene'),
 (N'@Kristi_Chambers' )
+
+DELETE FROM SocialGraph.Account WHERE AccountHandle is NULL;

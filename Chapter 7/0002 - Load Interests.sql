@@ -1,6 +1,9 @@
+USE SocialGraph
+GO
+SET NOCOUNT ON;
 --Adapted from https://cafewebmaster.com/list-hobbies-and-interests-text-database
 DELETE FROM SocialGraph.Interest;
-SET NOCOUNT ON;
+
 
 INSERT INTO SocialGraph.Interest(InterestName) VALUES ('3D printing');
 INSERT INTO SocialGraph.Interest(InterestName) VALUES ('Acting');
