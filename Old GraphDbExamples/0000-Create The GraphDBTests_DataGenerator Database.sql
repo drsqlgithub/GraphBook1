@@ -94,7 +94,7 @@ DECLARE @DefaultLogDirectory NVARCHAR(512) = isnull(@ExplicitLog, @MasterLog)
 DECLARE @dataFile NVARCHAR(512) = 
 				CASE WHEN '$(PrimaryFileGroupDirectoryOverride)' COLLATE Latin1_General_BIN2 <> 'NONE' COLLATE Latin1_General_BIN2 
 				THEN '$(PrimaryFileGroupDirectoryOverride)'
-				ELSE @DefaultDataDirectory END + '\$(Databasename)_PRIMARY87.mdf',
+				ELSE @DefaultDataDirectory END + '\$(Databasename)_PRIMARY.mdf',
 		@LogFile NVARCHAR(512) = 				
 				CASE WHEN '$(LogDirectoryOverride)' COLLATE Latin1_General_BIN2 <> 'NONE' COLLATE Latin1_General_BIN2 
 				THEN '$(LogDirectoryOverride)'
@@ -199,3 +199,7 @@ ALTER DATABASE [$(DatabaseName)] SET READ_WRITE
 */
 GO
 
+
+SELECT type_desc, name, physical_name
+FROM   sys.master_files
+WHERE database_id = DB_ID('$(Databasename)')

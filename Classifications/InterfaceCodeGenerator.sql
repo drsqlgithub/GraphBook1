@@ -5,32 +5,6 @@
 --SELECT *
 --FROM   Resources.Writes
 
-SET NOCOUNT ON;
-
-DECLARE @EdgeSchema sysname = 'Classifications',
-		@EdgeName sysname = 'Categorizes',
-
-		@FromSchema sysname = 'Classifications',
-		@FromObject sysname = 'Tag',
-		@FromObjectColumnName sysname = 'TagName',
-		@FromObjectColumnNameAS sysname ,
-
-		@ToSchema sysname = 'Classifications',
-		@ToObject sysname = 'Tag',
-		@ToObjectColumnName sysname = 'TagName',
-		@ToObjectColumnNameAS sysname = 'ClassifiedTagName',
-
-
-		@NameDelimiter CHAR(1) = '_'
-		,@crlf nvarchar(2) = CHAR(13) + CHAR(10)
-		
---SELECT *
---FROM   Resources.Person
---SELECT *
---FROM   Resources.Document
---SELECT *
---FROM   Resources.Writes
-
 
 --DECLARE @EdgeSchema sysname = 'Resources',
 --		@EdgeName sysname = 'Writes',
@@ -60,6 +34,22 @@ DECLARE @EdgeSchema sysname = 'Classifications',
 --		@ToObjectColumnNameAS sysname ,
 
 
+DECLARE @EdgeSchema sysname = 'Classifications',
+		@EdgeName sysname = 'Categorizes',
+
+		@FromSchema sysname = 'Classifications',
+		@FromObject sysname = 'Tag',
+		@FromObjectColumnName sysname = 'TagName',
+		@FromObjectColumnNameAS sysname ,
+
+		@ToSchema sysname = 'Resources',
+		@ToObject sysname = 'Document',
+		@ToObjectColumnName sysname = 'DocumentName',
+		@ToObjectColumnNameAS sysname ,
+
+
+		@NameDelimiter CHAR(1) = '_'
+		,@crlf nvarchar(2) = CHAR(13) + CHAR(10)
 		
 DECLARE @Query TABLE (LineNumber INT PRIMARY KEY, Line VARCHAR(1000))
 

@@ -1,10 +1,14 @@
+USE CategorizationGraph
+GO
 CREATE OR ALTER PROCEDURE Resources_UI.DocumentCreate(
 	@AuthorName NVARCHAR(100),
 	@DocumentName NVARCHAR(100),
 	@DocumentType VARCHAR(30),
 	@DocumentStatus VARCHAR(30),
 	@PublishDate DATE = NULL,
-	@TagList NVARCHAR(MAX)
+	@TagList NVARCHAR(MAX),
+	@ViewCount INT,
+	@Url NVARCHAR(3000)
 	)
 AS
 BEGIN
@@ -24,19 +28,25 @@ BEGIN
 		    DocumentName,
 		    DocumentType,
 			DocumentStatus,
-			PublishDate
+			PublishDate,
+			ViewCount,
+			Url
 		)
 		VALUES
 		(   @DocumentName,
 			@DocumentType,
 			@DocumentStatus,
-			@PublishDate
+			@PublishDate,
+			@ViewCount,
+			@Url
 		);
 	ELSE
 		UPDATE Resources.Document
 		SET DocumentStatus = @DocumentStatus,
 			PublishDate = @PublishDate,
-			DocumentType = @DocumentType
+			DocumentType = @DocumentType,
+			ViewCount = @ViewCount,
+			Url = @Url
 		WHERE DocumentName = @DocumentName
 
 
@@ -88,9 +98,16 @@ BEGIN
 END;
 GO
 
-SELECT PersonName, DocumentName, STRING_AGG(TagName,',') AS Tags
-FROM   Classifications.Tag, Classifications.Categorizes, Resources.Document,
-		Resources.Writes, Resources.Person
-WHERE  MATCH(Tag-(Categorizes)->Document)
-  AND  MATCH(Person-(Writes)->Document)
-GROUP BY DocumentName, PersonName
+CREATE OR ALTER TRIGGER Resources.Document$updateTime_Trigger
+ON Resources.Document
+FOR UPDATE
+AS
+BEGIN
+	UPDATE Resources.Document
+	SET Document.RowLastModifiedTime = SYSDATETIME(),
+		Document.ViewCountLastCapturedChangeTime = CASE WHEN COALESCE(Document.ViewCount,-1) <> COALESCE(Inserted.ViewCount,-1) OR Document.ViewCountLastCapturedChangeTime IS NULL THEN SYSDATETIME() ELSE Document.ViewCountLastCapturedChangeTime END
+	FROM   Resources.Document
+			JOIN Inserted
+				ON Inserted.DocumentId = Document.DocumentId
+END
+GO

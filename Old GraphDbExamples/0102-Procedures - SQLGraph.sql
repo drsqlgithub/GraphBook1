@@ -70,7 +70,7 @@ SELECT CAST($edge_id as varchar(64)) as [$edge_id],
        CAST($from_id as varchar(64)) as [$from_id],
        CAST($to_id as varchar(64)) as [$to_id]
 FROM   SqlGraph.ReportsTo
-
+GO
 /*
 $node_id                                                         CompanyId   Name
 ---------------------------------------------------------------- ----------- --------------------
@@ -97,7 +97,7 @@ SELECT Tools.Graph$EdgeIdFormat($edge_id) AS [$edge_id],
        Tools.Graph$NodeIdFormat($from_id) AS [$from_id],
        Tools.Graph$NodeIdFormat($to_id) AS [$to_id] 
 FROM SqlGraph.ReportsTo;
-
+GO
 /*
 This returns the same details in a more compact manner, due ot the limited real estate in the book.
 
@@ -119,12 +119,12 @@ SqlGraph.ReportsTo id:2      SqlGraph.Company id:2          SqlGraph.Company id:
 
 --Now I am going to add my first root node. To make the whole example clearer for doing the math, I only put sale data on root nodes. This is also a very reasonable expectation to have in the real world for many situations. It does not really affect the outcome if sale data was appended to the non-root nodes either, but it would be very typcical for the stores or salespersons to have sales, but the region to only have sales based on the stores or salespersons.
 EXEC SqlGraph.Sale$InsertTestData @Name = 'Nashville Branch';
-
+GO
 --You can see the sale data inserted here:
 
 SELECT *
 FROM   SqlGraph.Sale;
-
+GO
 /*
 This returns:
 
@@ -144,7 +144,7 @@ FROM   SqlGraph.Sale
 		JOIN SqlGraph.Company
 			ON Company.CompanyId = Sale.CompanyId
 GROUP BY Name;
-
+GO
 /*
 Name                 
 -------------------- ---------------------------------------
@@ -203,7 +203,7 @@ CompanyId   Name                 ParentCompanyId
 
 --In the downloads, I will compile this to a vew named: SqlGraph.CompanyClean
 */
-
+GO
 CREATE OR ALTER VIEW SqlGraph.CompanyClean
 AS
 --get the root
@@ -218,7 +218,7 @@ FROM   SqlGraph.Company,
 	   SqlGraph.ReportsTo,
 	   SqlGraph.Company AS ParentCompany
 WHERE MATCH(Company<-(ReportsTo)-ParentCompany)
-
+GO
 /*
 Before we move forward, there are a few operations that I need to demonstrate how we look at the data in a semi graphical manner. In the following query, I 
 */
@@ -273,7 +273,7 @@ WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
 SELECT REPLICATE('--> ',Level) + Name AS HierarchyDisplay
 FROM   BaseRows
 ORDER BY Hierarchy
-
+GO
 /*
 This returns the following output:
 
@@ -297,12 +297,13 @@ CREATE OR ALTER VIEW SqlGraph.CompanyHierarchyDisplay
 AS 
 WITH BaseRows AS
 (
-SELECT 0 AS Level, Company.Name AS Hierarchy, Company.Name
+SELECT Company.CompanyId, 0 AS Level, Company.Name AS Hierarchy, Company.Name
 FROM  SqlGraph.Company
 WHERE  $node_id NOT IN (SELECT  $to_id
 						FROM    SqlGraph.ReportsTo)
 UNION ALL
-SELECT	COUNT(ReportsToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) ,
+SELECT	LAST_VALUE(ReportsToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) AS CompanyId,
+		COUNT(ReportsToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) ,
 		Company.NAME + '->' + STRING_AGG(ReportsToCompany.name, '->') WITHIN GROUP (GRAPH PATH) AS Friends
 		,LAST_VALUE(ReportsToCompany.name) WITHIN GROUP (GRAPH PATH) AS LastNode
 FROM    SqlGraph.Company AS Company, 
@@ -311,7 +312,7 @@ FROM    SqlGraph.Company AS Company,
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
   AND Company.Name = 'Company HQ'
 )
-SELECT REPLICATE('--> ',Level) + Name AS HierarchyDisplay, Level,  Name, Hierarchy
+SELECT CompanyId, REPLICATE('--> ',Level) + Name AS HierarchyDisplay, Level,  Name, Hierarchy
 FROM   BaseRows;
 GO
 /*
@@ -371,6 +372,7 @@ GO
 SELECT HierarchyDisplay
 FROM   SqlGraph.CompanyHierarchyDisplay
 ORDER BY Hierarchy;
+GO
 /*
 This returns:
 
@@ -395,7 +397,7 @@ GO
 SELECT HierarchyDisplay
 FROM   SqlGraph.CompanyHierarchyDisplay
 ORDER BY Hierarchy
-
+GO
 /*
 HierarchyDisplay
 ----------------------------------------
@@ -567,7 +569,7 @@ GO
 SELECT HierarchyDisplay
 FROM   SqlGraph.CompanyHierarchyDisplay
 ORDER BY Hierarchy
-
+GO
 
 /*
 The Hierarchy now looks like this:
@@ -616,7 +618,7 @@ GO
 SELECT HierarchyDisplay
 FROM   SqlGraph.CompanyHierarchyDisplay
 ORDER BY Hierarchy
-
+GO
 /*
 Now you will see that the 'Georgia HQ' and 'Atlanta HQ' rows are gone.
 
@@ -637,7 +639,10 @@ Company HQ
 Next lets see what the @ReparentChildNodesToParentFlag does. Excuting the following code removes the 'Texas HQ' row, but now the Dallas and Houston Branch nodes will be moved up as child nodes of the 'Company HQ' node.
 */
 EXEC SqlGraph.Company$Delete @Name = 'Texas HQ', @ReparentChildNodesToParentFlag = 1;
+GO
 
+/*
+Which leaves us with the following:
 
 HierarchyDisplay
 ---------------------------------------------
@@ -651,6 +656,7 @@ Company HQ
 --> --> Knoxville Branch
 --> --> Memphis Branch
 --> --> Nashville Branch
+*/
 
 --Finally, clean up the nodes that are left over from this example:
 
