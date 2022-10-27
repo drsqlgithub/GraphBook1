@@ -34,18 +34,18 @@
 --		@ToObjectColumnNameAS sysname ,
 
 
-DECLARE @EdgeSchema sysname = 'Classifications',
-		@EdgeName sysname = 'Categorizes',
+DECLARE @EdgeSchema sysname = 'Locations',
+		@EdgeName sysname = 'Includes',
 
-		@FromSchema sysname = 'Classifications',
-		@FromObject sysname = 'Tag',
-		@FromObjectColumnName sysname = 'TagName',
+		@FromSchema sysname = 'Locations',
+		@FromObject sysname = 'Item',
+		@FromObjectColumnName sysname = 'Name',
 		@FromObjectColumnNameAS sysname ,
 
-		@ToSchema sysname = 'Resources',
-		@ToObject sysname = 'Document',
-		@ToObjectColumnName sysname = 'DocumentName',
-		@ToObjectColumnNameAS sysname ,
+		@ToSchema sysname = 'Locations',
+		@ToObject sysname = 'Item',
+		@ToObjectColumnName sysname = 'Name',
+		@ToObjectColumnNameAS sysname = 'ToName',
 
 
 		@NameDelimiter CHAR(1) = '_'

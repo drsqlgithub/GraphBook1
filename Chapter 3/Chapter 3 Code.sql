@@ -82,7 +82,8 @@ PersonId    FirstName    LastName       Name             Value
 1           Fred         Rick           Fred Rick        1         
 */
 
---#You can use the column name in a query:
+--#You can use the column name in a query (Npte: you will have to replace this value with the name of the column
+--as it shows up in your results):
 
 select [$node_id_C580185613BB42EF81F4A68F6FA539DC] 
 from   Network.Person
@@ -323,6 +324,7 @@ Identifier 'FollowedPerson' in a MATCH clause is used with a JOIN clause or APPL
 
 --All joins to fetch extra information will need to be done like this
 WITH GraphPart AS (
+
 SELECT      Person.Name AS PersonName,
             FollowedPerson.Name AS FollowedPersonName,
 			Person.FirstName
@@ -330,6 +332,7 @@ FROM        Network.Person,
             Network.Follows,
             Network.Person AS FollowedPerson
 WHERE MATCH(Person-(Follows)->FollowedPerson))
+
 SELECT GraphPart.PersonName, GraphPart.FollowedPersonName, 
 		Colors.ColorName
 FROM   GraphPart
@@ -401,7 +404,7 @@ Fred Rick Lou Iss
 CREATE TABLE Network.ProgrammingLanguage
 (
     Name nvarchar(30) NOT NULL
-)AS NODE;
+) AS NODE;
 
 CREATE TABLE Network.ProgramsWith AS EDGE;
 
@@ -491,7 +494,7 @@ FROM        Network.Person AS Person,
             Network.ProgramsWith AS ProgramsWith,
             Network.ProgrammingLanguage AS ProgrammingLanguage
 WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage)
-ORDER BY    Person, Name;
+ORDER BY    Person.Name;
 
 SELECT Person.Name AS PersonName, 
        NULL AS ProgrammingLanguage
@@ -516,7 +519,7 @@ WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage)
 	   --every person will match themselves
 	   AND Person2.PersonId <> Person.PersonId
 	   AND Person.Name = 'Lou Iss'
-ORDER BY    Person, Person2, Name;
+ORDER BY    Person.Name, Person2.Name;
 
 --note that the person2 <> person line is due to the fact that person and Person2 are the same table, and we know that the same person has the same skill as themself.
 
@@ -532,6 +535,7 @@ FROM        Network.Person AS Person,
 --change here
 WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage<-(ProgramsWith2)-Person2)
                AND Person2.PersonId <> Person.PersonId
+AND Person.Name = 'Lou Iss'
 ORDER BY    Person, Person2, Name;
 
 --Now in the one MATCH expression, it expresses both sides of the equation.  Finally, since you may not be able to combine everything into one MATCH expression you can AND right in the MATCH expression:

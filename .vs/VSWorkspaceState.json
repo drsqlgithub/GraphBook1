@@ -4,13 +4,13 @@
     "\\Chapter 3",
     "\\Chapter 4",
     "\\Chapter 5",
+    "\\Chapter 5b - Acyclic Graph Geography",
     "\\Chapter 6",
     "\\Chapter 7",
     "\\Classifications",
     "\\Old GraphDbExamples",
-    "\\SocialGraph",
-    "\\TreeHierarchies"
+    "\\SocialGraph"
   ],
-  "SelectedNode": "\\Chapter 7\\Queries.sql",
+  "SelectedNode": "\\Chapter 5b - Acyclic Graph Geography\\1000-ScriptToDisplayNodes.sql",
   "PreviewInSolutionExplorer": false
 }
