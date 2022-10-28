@@ -27,7 +27,7 @@ CREATE TABLE Locations.Item
 
 CREATE TABLE Locations.ItemClass --Attraction, Restauraunt, Transportation Etc
 (
-	ItemClassId INT Identity NOT NULL CONSTRAINT PKItemClass PRIMARY KEY,
+	ItemClassId INT IDENTITY NOT NULL CONSTRAINT PKItemClass PRIMARY KEY,
 	ItemClass VARCHAR(100) NOT NULL,
 	Description VARCHAR(1000) NOT NULL
 )
@@ -45,15 +45,50 @@ CREATE TABLE Locations.IncludeType
 (
 	IncludeTypeId INT NOT NULL IDENTITY CONSTRAINT PKIncludeType PRIMARY KEY,
 	IncludeType VARCHAR(100) NOT NULL,
-	Description varchar(1000) NOT NULL
+	Description VARCHAR(1000) NOT NULL
 )
 
 
 CREATE TABLE Locations.Includes(
 	IncludeTypeId INT NOT NULL  CONSTRAINT FKIncludes$References$IncludeType REFERENCES Locations.IncludeType (IncludeTypeId)
-) as EDGE
-
+) AS EDGE
 GO
+
+CREATE TRIGGER Locations.Includes$InsertUpdateTrigger
+ON Locations.Includes
+AFTER INSERT
+AS
+ BEGIN
+	SET NOCOUNT ON
+	IF EXISTS (SELECT *
+			   FROM   Inserted
+			   WHERE  Inserted.$from_id = Inserted.$to_id)
+	  THROW 50000,'No self relationships allowed',1;
+
+	--look for cycles by checking to see if there is any 
+	--item where the connected item matches the itemName
+	DECLARE @CycleFoundFlag BIT = 0;
+	WITH BaseRows AS (
+	SELECT Item.ItemName,  
+		  LAST_VALUE(FollowedItem.ItemName) WITHIN GROUP (GRAPH PATH)
+													AS ConnectedItem
+		  --,STRING_AGG(FollowedItem.ItemName, '->') WITHIN GROUP 
+		  --                                      (GRAPH PATH) AS Path
+	FROM   Locations.Item AS Item,
+		   Locations.Includes FOR PATH AS Includes,
+		   Locations.Item FOR PATH AS FollowedItem
+	WHERE  MATCH(SHORTEST_PATH(Item(-(Includes)->FollowedItem)+))
+	)
+	SELECT @CycleFoundFlag = 1
+	FROM   BaseRows
+	WHERE  ItemName = ConnectedItem
+
+	IF @CycleFoundFlag = 1
+	 THROW 50000, 'The data entered causes a cyclic relationship',1;
+
+
+ END;
+ GO
 
 
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE schemas.Name = 'Locations_UI')

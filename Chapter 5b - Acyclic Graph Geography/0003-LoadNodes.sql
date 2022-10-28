@@ -1,3 +1,5 @@
+USE ImagesDirectory
+GO
 DELETE Locations.Includes
 DELETE Locations.Item;
 DELETE Locations.IncludeType
@@ -46,8 +48,9 @@ EXEC Locations.[Item$Maintain] 'Funville','Theme Park Land','Fun Kingdom Park Ar
 EXEC Locations.[Item$Maintain] 'Fun Homeland','Theme Park Land','Fun Kingdom Park Area','FunHomeLand',0
 EXEC Locations.[Item$Maintain] 'Fun Vittles','Theme Park Land','Fun Kingdom Park Area','FunVittles',0
 
-EXEC Locations.[Item$Maintain] 'Silly Studio','Theme Park Land','Silly Studios Park Area','SillyStudio',0
+EXEC Locations.[Item$Maintain] 'Silly Studio Zone','Theme Park Land','Silly Studios Park Area','SillyStudio',0
 EXEC Locations.[Item$Maintain] 'Silly Town','Theme Park Land','Silly Studios Park Area','SillyTown',0
+
 
 
 EXEC Locations.[Item$Maintain] 'Happy Fun Resort Trolley','Trolley','Takes you between theme parks','HFTrolley',0
@@ -55,6 +58,7 @@ EXEC Locations.[Item$Maintain] 'Happy Fun Resort Trolley','Trolley','Takes you b
 EXEC Locations.[Item$Maintain] 'Silly Town Trolley Station','Trolley Station','Place to catch the trolley','SillyTownTrolleyStation',0
 EXEC Locations.[Item$Maintain] 'Funville Trolley Station','Trolley Station','Place to catch the trolley','FunvilleTrolleyStation',0
 EXEC Locations.[Item$Maintain] 'Fun Shopping Zone Trolley Station','Trolley Station','Place to catch the trolley','FunvShoppingZoneTrolleyStation',0
+
 GO
 
 
@@ -65,20 +69,28 @@ VALUES
 ('Happy Fun Resort','Fun Kingdom','Contains'),
 ('Happy Fun Resort','Silly Studios','Contains'),
 ('Happy Fun Resort','Happy Fun Resort Trolley','Contains'),
+('Happy Fun Resort','Funville Trolley Station','Contains'),
 
 ('Fun Kingdom','Funville','Contains'),
 ('Fun Kingdom','Fun Homeland','Contains'),
 ('Fun Kingdom','Fun Vittles','Contains'),
 
-('Silly Studios','Silly Studio','Contains'),
+('Silly Studios','Silly Studio Zone','Contains'),
 ('Silly Studios','Silly Town','Contains'),
 
 ('Silly Town','Silly Town Trolley Station','Contains'),
 ('Funville','Funville Trolley Station','Contains'),
+('Fun Shopping Zone','Fun Shopping Zone Trolley Station','Contains'),
 
 ('Funville Trolley Station','Happy Fun Resort Trolley','Related'),
 ('Silly Town Trolley Station','Happy Fun Resort Trolley','Related'),
 ('Fun Shopping Zone Trolley Station','Happy Fun Resort Trolley','Related')
+
+--self relationship test
+--,('Silly Studios','Silly Studios','Contains')
+
+--cycle test
+--,('Silly Studios','Happy Fun Resort','Contains')
 
 
 

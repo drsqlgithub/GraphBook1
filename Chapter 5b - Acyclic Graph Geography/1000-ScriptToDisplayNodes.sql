@@ -1,6 +1,7 @@
 USE ImagesDirectory
 GO
---parameters values for this database: https://docs.microsoft.com/en-us/sql/relational-databases/graphs/sql-graph-sample?view=sql-server-ver15
+--this script outputs a dataset that will let you display a graph using any tool that will ingest a TGF format file (Trivial Graph Format)
+--it is 
 
 --list of nodes in format schema.nodetable.nameForLabel;schema.nodetable.nameForLabel;
 --done this way because it is a lot easier to manually edit
@@ -65,7 +66,7 @@ DECLARE @NodeCursor CURSOR,
 		@EdgeName sysname,
 		@SchemaName sysname,
 		@NodeNameColumn sysname,
-		@SQLQuery nvarchar(MAX)
+		@SQLQuery NVARCHAR(MAX)
 
 --cursoring over the different nodes and adding them with dynamic SQL
 SET @NodeCursor = CURSOR FOR (SELECT SchemaName,TableName,NodeNameColumn FROM @NodeTableList)
