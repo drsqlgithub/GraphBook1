@@ -1,4 +1,4 @@
-use GraphDBTests
+USE GraphDBTests
 GO
 /********************
 Simple adjacency list

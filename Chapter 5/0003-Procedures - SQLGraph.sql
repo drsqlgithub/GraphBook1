@@ -49,6 +49,8 @@ BEGIN
 
 END;
 GO
+--DELETE FROM SqlGraph.ReportsTo
+--DELETE FROM SqlGraph.Company
 
 --Recall from chapter ?, where I introduced tree structures, I started out with this structure (that I will repeat here as Figure 5-1. This is the exact same base script as I will use for every structure, with the only difference being the schema being named for the technique. So let me load the first set of nodes that are not leaf nodes.
 
@@ -58,8 +60,7 @@ EXEC SqlGraph.Company$Insert @Name = 'Maine HQ', @ParentCompanyName = 'Company H
 
 EXEC SqlGraph.Company$Insert @Name = 'Tennessee HQ', @ParentCompanyName = 'Company HQ';
 
-EXEC SqlGraph.Company$Insert @Name = 'Nashville Branch', @ParentCompanyName = 'Tennessee HQ';
-GO
+
 --Looking at the data:
 SELECT CAST($node_id AS VARCHAR(64)) AS [$node_id],
        CompanyId,
@@ -69,7 +70,7 @@ FROM SqlGraph.Company;
 SELECT CAST($edge_id as varchar(64)) as [$edge_id],
        CAST($from_id as varchar(64)) as [$from_id],
        CAST($to_id as varchar(64)) as [$to_id]
-FROM   SqlGraph.ReportsTo
+FROM   SqlGraph.ReportsTo;
 
 /*
 $node_id                                                         CompanyId   Name
@@ -77,25 +78,25 @@ $node_id                                                         CompanyId   Nam
 {"type":"node","schema":"SqlGraph","table":"Company","id":0}     1           Company HQ
 {"type":"node","schema":"SqlGraph","table":"Company","id":1}     2           Maine HQ
 {"type":"node","schema":"SqlGraph","table":"Company","id":2}     3           Tennessee HQ
-{"type":"node","schema":"SqlGraph","table":"Company","id":3}     4           Nashville Branch
+
 
 $edge_id                                                         $from_id                                                         $to_id
 ---------------------------------------------------------------- ---------------------------------------------------------------- ----------------------------------------------------------------
 {"type":"edge","schema":"SqlGraph","table":"ReportsTo","id":0}   {"type":"node","schema":"SqlGraph","table":"Company","id":0}     {"type":"node","schema":"SqlGraph","table":"Company","id":1}
 {"type":"edge","schema":"SqlGraph","table":"ReportsTo","id":1}   {"type":"node","schema":"SqlGraph","table":"Company","id":0}     {"type":"node","schema":"SqlGraph","table":"Company","id":2}
-{"type":"edge","schema":"SqlGraph","table":"ReportsTo","id":2}   {"type":"node","schema":"SqlGraph","table":"Company","id":2}     {"type":"node","schema":"SqlGraph","table":"Company","id":3}
+
 
 */
  --for most of the book, when I need to show the internals, I will use the following functions that were introduced back in chapter 4.
 
-SELECT  Tools.Graph$NodeIdFormat($node_id) AS [$node_id],
+SELECT  Tools.Graph$NodeIdFormat($node_id,0) AS [$node_id],
        CompanyId,
        Name 
 FROM SqlGraph.Company;
 
-SELECT Tools.Graph$EdgeIdFormat($edge_id) AS [$edge_id],
-       Tools.Graph$NodeIdFormat($from_id) AS [$from_id],
-       Tools.Graph$NodeIdFormat($to_id) AS [$to_id] 
+SELECT Tools.Graph$EdgeIdFormat($edge_id,0) AS [$edge_id],
+       Tools.Graph$NodeIdFormat($from_id,0) AS [$from_id],
+       Tools.Graph$NodeIdFormat($to_id,0) AS [$to_id] 
 FROM SqlGraph.ReportsTo;
 
 /*
@@ -103,21 +104,24 @@ This returns the same details in a more compact manner, due ot the limited real 
 
 $node_id                       CompanyId   Name
 ------------------------------ ----------- --------------------
-SqlGraph.Company id:0          1           Company HQ
-SqlGraph.Company id:1          2           Maine HQ
-SqlGraph.Company id:2          3           Tennessee HQ
-SqlGraph.Company id:3          4           Nashville Branch
+Company id:0                   1           Company HQ
+Company id:1                   2           Maine HQ
+Company id:2                   3           Tennessee HQ
+
+(3 rows affected)
 
 $edge_id                       $from_id                       $to_id
 ------------------------------ ------------------------------ ------------------------------
-SqlGraph.ReportsTo id:0      SqlGraph.Company id:0          SqlGraph.Company id:1
-SqlGraph.ReportsTo id:1      SqlGraph.Company id:0          SqlGraph.Company id:2
-SqlGraph.ReportsTo id:2      SqlGraph.Company id:2          SqlGraph.Company id:3
+ReportsTo id:0                 Company id:0                   Company id:1
+ReportsTo id:1                 Company id:0                   Company id:2
 */
 
 --You will see that you have 4 nodes and 3 edges. CompanyHQ's internal id value is 0 (assuming you don't have any errors, which I have had many times and regenerated so I can get the ideal output.
 
 --Now I am going to add my first root node. To make the whole example clearer for doing the math, I only put sale data on root nodes. This is also a very reasonable expectation to have in the real world for many situations. It does not really affect the outcome if sale data was appended to the non-root nodes either, but it would be very typcical for the stores or salespersons to have sales, but the region to only have sales based on the stores or salespersons.
+
+EXEC SqlGraph.Company$Insert @Name = 'Nashville Branch', @ParentCompanyName = 'Tennessee HQ';
+
 EXEC SqlGraph.Sale$InsertTestData @Name = 'Nashville Branch';
 
 --You can see the sale data inserted here:
@@ -217,24 +221,25 @@ SELECT Company.CompanyId, Company.Name, ParentCompany.CompanyId AS ParentCompany
 FROM   SqlGraph.Company,
 	   SqlGraph.ReportsTo,
 	   SqlGraph.Company AS ParentCompany
-WHERE MATCH(Company<-(ReportsTo)-ParentCompany)
+WHERE MATCH(Company<-(ReportsTo)-ParentCompany);
 
 /*
 Before we move forward, there are a few operations that I need to demonstrate how we look at the data in a semi graphical manner. In the following query, I 
 */
-SELECT 0 AS Level, Company.Name AS Hierarchy, Company.Name
+SELECT 0 AS Level, Company.Name AS Hierarchy--, Company.Name
 FROM  SqlGraph.Company
 WHERE  $node_id NOT IN (SELECT  $to_id
 						FROM    SqlGraph.ReportsTo)
 UNION ALL
 SELECT	COUNT(ReportsToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) ,
 		Company.NAME + '->' + STRING_AGG(ReportsToCompany.name, '->') WITHIN GROUP (GRAPH PATH) AS Friends
-		,LAST_VALUE(ReportsToCompany.name) WITHIN GROUP (GRAPH PATH) AS LastNode
+		--,LAST_VALUE(ReportsToCompany.name) WITHIN GROUP (GRAPH PATH) AS LastNode
 FROM    SqlGraph.Company AS Company, 
 		SqlGraph.ReportsTo FOR PATH AS ReportsTo,
 		SqlGraph.Company FOR PATH AS ReportsToCompany
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-  AND Company.Name = 'Company HQ';
+  AND Company.Name = 'Company HQ'
+ORDER BY hierarchy;
 
 /*
 The output of this query gives the following:
@@ -256,23 +261,28 @@ Using this output, I will make that a CTE and then use the level column to inden
 
 WITH BaseRows AS
 (
-SELECT 0 AS Level, Company.Name AS Hierarchy, Company.Name
+SELECT 0 AS Level, Company.Name AS Hierarchy ,Company.Name
 FROM  SqlGraph.Company
 WHERE  $node_id NOT IN (SELECT  $to_id
-						FROM    SqlGraph.ReportsTo)
+                        FROM    SqlGraph.ReportsTo)
 UNION ALL
-SELECT	COUNT(ReportsToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) ,
-		Company.NAME + '->' + STRING_AGG(ReportsToCompany.name, '->') WITHIN GROUP (GRAPH PATH) AS Friends
-		,LAST_VALUE(ReportsToCompany.name) WITHIN GROUP (GRAPH PATH) AS LastNode
+SELECT    COUNT(ReportsToCompany.CompanyId) 
+                          WITHIN GROUP (GRAPH PATH) ,
+          Company.NAME + '->' + 
+          STRING_AGG(ReportsToCompany.name, '->') 
+                       WITHIN GROUP (GRAPH PATH) AS Friends
+          ,LAST_VALUE(ReportsToCompany.name) 
+                   WITHIN GROUP (GRAPH PATH) AS LastNode
 FROM    SqlGraph.Company AS Company, 
-		SqlGraph.ReportsTo FOR PATH AS ReportsTo,
-		SqlGraph.Company FOR PATH AS ReportsToCompany
+        SqlGraph.ReportsTo FOR PATH AS ReportsTo,
+        SqlGraph.Company FOR PATH AS ReportsToCompany
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
   AND Company.Name = 'Company HQ'
 )
 SELECT REPLICATE('--> ',Level) + Name AS HierarchyDisplay
 FROM   BaseRows
 ORDER BY Hierarchy
+
 
 /*
 This returns the following output:
@@ -330,7 +340,6 @@ BEGIN
 	INSERT INTO @Output
 	SELECT *, REPLICATE('--> ',LEVEL - 1) + Name AS HierarchyDisplay
 	FROM  BaseRows
-	ORDER BY hierarchy
 RETURN
 
 END;
@@ -388,6 +397,7 @@ BEGIN
 
 END;
 GO
+
 
 --Now, let's look at the tree structure as is:
 
