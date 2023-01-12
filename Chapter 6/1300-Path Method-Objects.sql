@@ -90,7 +90,10 @@ CREATE OR ALTER FUNCTION PathMethod.Company$ReturnHierarchy
 (
 	@CompanyName varchar(20)
 ) 
-RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), Level INT, Hierarchy NVARCHAR(4000), IdHierarchy NVARCHAR(4000), HierarchyDisplay NVARCHAR(4000))
+RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), 
+                       Level INT, Hierarchy NVARCHAR(4000), 
+					   IdHierarchy NVARCHAR(4000), 
+					   HierarchyDisplay NVARCHAR(4000))
 AS
  BEGIN 
 
@@ -98,6 +101,7 @@ DECLARE @CompanyId INT,
 		@CompanyPath varchar(12),
 		@CompanyPathReplace varchar(12)
 		
+--get the companyId and path for the item you want to get the child rows of
 SELECT @CompanyId = CompanyId,
 	   @CompanyPath = CONCAT('\',CompanyId,'\'),
 	   @CompanyPathReplace = Path
@@ -106,10 +110,14 @@ WHERE  Name = @CompanyName;
 
 WITH BaseRows AS
 (
-SELECT CompanyId, Name, REPLACE(path,@CompanyPathReplace,@CompanyPath) AS IdHierarchy
+--get the child rows using the simple like expression 
+--to get child rows whose path startw with the parent
+SELECT CompanyId, Name, 
+       REPLACE(path,@CompanyPathReplace,@CompanyPath) AS IdHierarchy
 FROM   PathMethod.Company
 WHERE  Path LIKE @CompanyPathReplace + '%'
 )
+--output the rows
 INSERT INTO @Output
 (
     CompanyId,
@@ -123,7 +131,9 @@ SELECT Baserows.CompanyId, BaseRows.Name
 		, LEN(IdHierarchy) - LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-1 AS Level,
 		'Not feasible',
 		BaseRows.IdHierarchy,
-		 REPLICATE('--> ',LEN(IdHierarchy) - LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-2) + Name AS HieararchyDisplay
+		--put in the arrows for the simple output
+		 REPLICATE('--> ',LEN(IdHierarchy) - 
+		      LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-2) + Name AS HieararchyDisplay
 FROM BaseRows;
 RETURN;
 END 
@@ -142,25 +152,32 @@ AS
 BEGIN
 	DECLARE @output BIT = 0;
 
-	DECLARE @CompanyId INT, @ChildFlag BIT = 0;
+	
+	--get the companyId of the item passed in
+	DECLARE @CompanyId INT
 	SELECT  @CompanyId = CompanyId
 	FROM   PathMethod.Company
 	WHERE  Name = @CompanyName;
 
+	--get the company id for the child
 	DECLARE @CheckForChildOfCompanyId int
 	SELECT  @CheckForChildOfCompanyId = CompanyId
 	FROM   PathMethod.Company
 	WHERE  Name = @CheckForChildOfCompanyName;
 
+	--IF the item IS A child OF the company TO check, the
+	--path will include the check for company first in the pattern,
+	--then the company id.
 	IF EXISTS (SELECT *
 				FROM   PathMethod.Company
-				WHERE  PATH LIKE CONCAT('%\',@CheckForChildOfCompanyId,'\%')
-				  AND  PATH LIKE CONCAT('%\',@CompanyId,'\%'))
+				WHERE  PATH LIKE CONCAT('%\',@CheckForChildOfCompanyId,'\%',
+				                        '%\',@CompanyId,'\%'))
+	  --if it was, then set to output true
 	  SET @output = 1;
+
 	RETURN @output;
 END;
 GO
-
 
 
 
@@ -179,6 +196,8 @@ AS (SELECT Company.CompanyId AS ParentCompanyId, ChildRows.CompanyId AS ChildCom
                ON ChildRows.Path LIKE Company.Path + '%'
 	),
 
+	--add in the formatting code and filter (less of a concern in the method
+	--as the first section does filter.
 	FilterAndSweeten AS (
 
 	SELECT ExpandedHierarchy.*, CompanyHierarchyDisplay.IdHierarchy

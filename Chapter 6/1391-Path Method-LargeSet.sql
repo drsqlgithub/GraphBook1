@@ -11144,3 +11144,5 @@ GO
 SELECT CONCAT(DATEDIFF(millisecond,MIN(CheckInTime), MAX(CheckInTime)) / 1000.0,' Seconds')
 from #holdTiming
 
+SELECT *
+FROM  PathMethod.DataSetStats

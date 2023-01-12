@@ -1,7 +1,7 @@
 --:SETVAR SchemaName SqlGraph
 --:SETVAR SchemaName AdjacencyList
---:SETVAR SchemaName PathMethod
-:SETVAR SchemaName GappedNestedSets
+:SETVAR SchemaName PathMethod
+--:SETVAR SchemaName GappedNestedSets
 
 --change next value to -- to sent output to screen, blank to send to temp table
 :setvar OutputToTempTable ""
@@ -19,17 +19,18 @@ DROP TABLE IF EXISTS #Company$ReportSales
 
 
 DROP TABLE IF EXISTS #holdTiming;
-SELECT SYSDATETIME() AS CheckInTime, concat('_',(select TestSetName from $(schemaName).DataSetStats),'_$(SchemaName)') AS StepName,'Starting' AS Location
+SELECT SYSDATETIME() AS CheckInTime, CONCAT('_',(SELECT TestSetName FROM $(schemaName).DataSetStats),'_$(SchemaName)') AS StepName,'Starting' AS Location
 INTO  #holdTiming;
 GO
 
-
+SELECT *
+FROM   PathMethod.Datasetstats
 
 INSERT INTO #holdTiming (CheckInTime, StepName, Location)
 VALUES (SYSDATETIME(),'Fetch All Children','Starting')
 
 
-DECLARE @Rootnode VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'node1' end
+DECLARE @Rootnode VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'node1' END
 
 SELECT *
 $(OutputToTempTable)INTO #Company$ReturnHierarchy
@@ -38,7 +39,7 @@ ORDER BY IdHierarchy;
 
 
 
-DECLARE @Case2 VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node100' end
+DECLARE @Case2 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node100' END
 
 $(OutputToTempTable)INSERT INTO #Company$ReturnHierarchy
 SELECT *
@@ -56,10 +57,10 @@ INSERT INTO #holdTiming (CheckInTime, StepName, Location)
 VALUES (SYSDATETIME(),'Test Check For Child','Starting')
 
 GO
-DECLARE @Rootnode VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'Node1' END,
-		@Case1 VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Camden Branch' ELSE 'Node3032' END,
-		@Case2 VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node19' END,
-		@Case3 VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Tennessee HQ' ELSE 'Node10' END
+DECLARE @Rootnode VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'Node1' END,
+		@Case1 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Camden Branch' ELSE 'Node3032' END,
+		@Case2 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node19' END,
+		@Case3 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Tennessee HQ' ELSE 'Node10' END
 
 
 
@@ -70,7 +71,7 @@ $(OutputToTempTable)INTO #Company$CheckForChild
 $(OutputToTempTable)INSERT INTO [#Company$CheckForChild] 
 SELECT (CASE $(SchemaName).Company$CheckForChild(@Case1,@Case2) 
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Answer, 'Case1_to_Case2' AS TestCase
-
+        
 $(OutputToTempTable)INSERT INTO [#Company$CheckForChild] 
 SELECT (CASE $(SchemaName).Company$CheckForChild(@Case1,@Case3) 
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Answer, 'Case1_to_Case3' AS TestCase

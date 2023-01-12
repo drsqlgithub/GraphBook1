@@ -1,6 +1,7 @@
 use GraphDBTests
 GO
 
+
 --The following code is interesting for reuse if you are building a system. Note that I have omitted some error handling for clarity of the demos, but I have tried to always include transactions and a TRY CATCH block so the code is minimally acceptable for even production systems. 
 
 --To start out, we need to be able to insert nodes. Some of the techniques we looked at in Chapter 4 will not be used in this section because this code is going to simulate a more natural process of creating rows as the customer might do it in reality. Fetching the node structures in each call in a procedure is perfectly adequate.
@@ -308,39 +309,59 @@ CREATE OR ALTER FUNCTION SqlGraph.Company$ReturnHierarchy
 (
 	@CompanyName varchar(20)
 ) 
-RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), Level INT, Hierarchy NVARCHAR(4000), IdHierarchy NVARCHAR(4000), hierarchyDisplay NVARCHAR(4000))
+RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), 
+                       Level INT, Hierarchy NVARCHAR(4000), 
+                      IdHierarchy NVARCHAR(4000), 
+                      hierarchyDisplay NVARCHAR(4000))
 AS 
 BEGIN
+      --get the identifier for the node you want to start with
+      DECLARE @CompanyId int, @NodeName nvarchar(max)
+      SELECT  @CompanyId = CompanyId,
+                  @Nodename = Name
+      FROM   SqlGraph.Company
+      WHERE  Name = @CompanyName;
 
-	DECLARE @CompanyId int, @NodeName nvarchar(max)
-	SELECT  @CompanyId = CompanyId,
-			@Nodename = Name
-	FROM   SqlGraph.Company
-	WHERE  Name = @CompanyName;
+      ;WITH baseRows as
+       (
+      --include node that you are looking for
+      SELECT @companyId as CompanyId, @NodeName as Name, 
+              1 as Level, 
+             '\' + Cast(@companyId as nvarchar(10)) + '\' as 
+                       IdHierarchy, --\ delimited but with id num
+               '\' + @NodeName AS Hieararchy
+      UNION ALL
+      SELECT 
+               LAST_VALUE(ToCompany.CompanyId) 
+                         WITHIN GROUP (GRAPH PATH) AS CompanyId,
+               LAST_VALUE(ToCompany.Name) 
+                         WITHIN GROUP (GRAPH PATH) AS NodeName,
+               1+COUNT(ToCompany.Name) 
+                         WITHIN GROUP (GRAPH PATH) AS levels,
+               '\' +  CAST(FromCompany.CompanyId as NVARCHAR(10)) +
+               '\' + STRING_AGG(cast(ToCompany.CompanyId as 
+                                            nvarchar(10)), '\')  
+                  WITHIN GROUP (GRAPH PATH) + '\' AS Idhierarchy,
 
-	;WITH baseRows as
-	(
-	SELECT @companyId as CompanyId, @NodeName as Name, 1 as Level, '\' + Cast(@companyId as nvarchar(10)) + '\' as IdHierarchy, '\' + @NodeName AS Hieararchy
-	UNION ALL
-	SELECT 
-		   LAST_VALUE(ToCompany.CompanyId) WITHIN GROUP (GRAPH PATH) AS CompanyId,
-		   LAST_VALUE(ToCompany.Name) WITHIN GROUP (GRAPH PATH) AS NodeName,
-		   1+COUNT(ToCompany.Name) WITHIN GROUP (GRAPH PATH) AS levels,
-		   '\' +  CAST(FromCompany.CompanyId as NVARCHAR(10)) + '\' + STRING_AGG(cast(ToCompany.CompanyId as nvarchar(10)), '\')  WITHIN GROUP (GRAPH PATH) + '\' AS Idhierarchy,
-		   '\' +  FromCompany.NAME + '\' + STRING_AGG(ToCompany.Name, '\')  WITHIN GROUP (GRAPH PATH) + '\' AS hierarchy
+               '\' +  FromCompany.NAME + '\' + 
+               STRING_AGG(ToCompany.Name, '\')  
+                    WITHIN GROUP (GRAPH PATH) + '\' AS hierarchy
 
-	FROM 
-		   SqlGraph.Company AS FromCompany,	
-		   SqlGraph.ReportsTo FOR PATH AS ReportsTo,
-		   SqlGraph.Company FOR PATH AS ToCompany
-	WHERE 
-		   MATCH(SHORTEST_PATH(FromCompany(-(ReportsTo)->ToCompany)+))
-		   AND FromCompany.CompanyId = @companyId
-	)
-	INSERT INTO @Output
-	SELECT *, REPLICATE('--> ',LEVEL - 1) + Name AS HierarchyDisplay
-	FROM  BaseRows
-RETURN
+      FROM 
+               SqlGraph.Company AS FromCompany,	
+               SqlGraph.ReportsTo FOR PATH AS ReportsTo,
+               SqlGraph.Company FOR PATH AS ToCompany
+      WHERE 
+            MATCH(SHORTEST_PATH(FromCompany(-(ReportsTo)
+                                                 ->ToCompany)+))
+          --start the processing from the parameter's companyId
+               AND FromCompany.CompanyId = @companyId
+      )
+      INSERT INTO @Output
+      SELECT *, REPLICATE('--> ',LEVEL - 1) + Name 
+                                         AS HierarchyDisplay
+      FROM  BaseRows
+RETURN;
 
 END;
 GO
@@ -848,3 +869,6 @@ FROM SqlGraph.Company
 ORDER BY Aggregations.hierarchy
 END;
 GO
+
+SELECT *
+FROM   SqlGraph.Company$ReturnHierarchy('Tennessee HQ' )
