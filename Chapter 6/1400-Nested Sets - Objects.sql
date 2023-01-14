@@ -20,6 +20,7 @@ CREATE SEQUENCE GappedNestedSets.CompanyDataGenerator_SEQUENCE
 AS INT
 START WITH 1
 GO
+
 CREATE TABLE GappedNestedSets.Sale
 (
 	SalesId	INT NOT NULL IDENTITY (1,1) CONSTRAINT PKSale PRIMARY KEY,
@@ -31,7 +32,11 @@ GO
 CREATE INDEX XCompanyId ON GappedNestedSets.Sale(CompanyId, Amount)
 go
 
-CREATE PROCEDURE GappedNestedSets.Company$Insert(@Name varchar(20), @ParentCompanyName  varchar(20), @gapSize INT = 20) 
+CREATE or alter PROCEDURE GappedNestedSets.Company$Insert(
+	@Name varchar(20), 
+	@ParentCompanyName  varchar(20), 
+	@gapSize INT = 20 --amount of space to leave between new nodes when there is space
+	) 
 as 
 BEGIN
 	if @gapSize < 2
@@ -43,6 +48,8 @@ BEGIN
 	SET NOCOUNT ON;
 	BEGIN TRANSACTION
 
+	--this take care of the initialization phase, and can only happen once
+	--but it is a variable comparison so it is work keeping
 	if @ParentCompanyName is NULL
 	 begin
 		if exists (select * from GappedNestedSets.Company)
@@ -54,11 +61,12 @@ BEGIN
 	 ELSE
 	 BEGIN
 
-
+		--checks to make sure a row exists already
 		if not exists (select * from GappedNestedSets.Company)
 			THROW 50000,'You must start with a root node',1;
 
 		--find the place in the Hierarchy where you will add a node
+		--as a child. 
 		DECLARE @ParentRight INT,
 				@parentLeft INT,
 				@childRight INT 
@@ -67,29 +75,34 @@ BEGIN
 		from   GappedNestedSets.Company 
 		where Name = @ParentCompanyName
 
+		--get the right value for any existing child of the parent node
 		select @childRight = MAX(HierarchyRight)
 		FROM   GappedNestedSets.Company
 		WHERE  HierarchyLeft > @parentLeft and HierarchyLeft < @ParentRight
 
 		--select @ParentRight pr, @parentLeft pl, @childRight
 
-		
+		--if no node exists for the parent, easy mode, we insert it
 		IF (@ChildRight IS NULL AND @ParentRight - @parentLeft >= 3) 
 		  BEGIN	
-				--SELECT 'quick'
+				--This means you can just add it in wihtout 
 				INSERT GappedNestedSets.Company (Name, HierarchyLeft, HierarchyRight)
 				SELECT @Name, @parentLeft + 1, @parentLeft + 2 
 		  END
-		ELSE IF (@ChildRight IS NOT NULL AND @ParentRight - @ChildRight >= 3)
+		--if a child does exist, and there is space for it (no gap)
+		--we can simply insert it to the right of the other child (so 2 and 3 away_
+		ELSE IF (@ChildRight IS NOT NULL 
+		         AND @ParentRight - @ChildRight >= 3) --3 means there is space for 2 values
 		  BEGIN	
-				--SELECT 'quick'
+				--just insert it
 				INSERT GappedNestedSets.Company (Name, HierarchyLeft, HierarchyRight)
 				SELECT @Name, @childRight + 2, @childRight + 3 
 		  END
 		ELSE 
 		BEGIN
-		    --SELECT 'not quick'
-			--make room for the new nodes.  
+		    
+			--make room for the new nodes by pushing all the other nodes in the tree to the right
+			--enough for the new nodes (plus the 
 			UPDATE GappedNestedSets.Company 
 			SET	   HierarchyRight = @gapSize + Company.HierarchyRight + 2, --for the parent node and all things right, add 2 to the hierachy right
 
@@ -97,7 +110,8 @@ BEGIN
 				   HierarchyLeft = Company.HierarchyLeft + CASE WHEN Company.HierarchyLeft > @ParentRight THEN  @gapSize + 2  ELSE 0 end
 			WHERE  HierarchyRight >= @ParentRight
 
-			--insert the node
+			--insert the chikd node (i erred on the side of caution that since most items would be leaf nodes
+			--in most trees, I did not leave a gap.
 			INSERT GappedNestedSets.Company (Name, HierarchyLeft, HierarchyRight)
 			SELECT @Name, @ParentRight, @ParentRight + 1
 		END
@@ -128,11 +142,16 @@ CREATE OR ALTER FUNCTION GappedNestedSets.Company$ReturnHierarchy
 	@CompanyName VARCHAR(20)
 ) 
 
-RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), Level INT, Hierarchy NVARCHAR(4000), IdHierarchy NVARCHAR(4000), HierarchyDisplay NVARCHAR(4000))
+RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), 
+                       Level INT, Hierarchy NVARCHAR(4000), 
+                       IdHierarchy NVARCHAR(4000), 
+					   HierarchyDisplay NVARCHAR(4000))
 AS
 BEGIN
 DECLARE @HierarchyLeft INT, @HierarchyRight INT
 
+--get the left and right values from the hierarchy
+--so we can get the child rows
 SELECT @HierarchyLeft = HierarchyLeft,
 		@HierarchyRight = HierarchyRight
 FROM  GappedNestedSets.Company
@@ -140,7 +159,8 @@ WHERE  Company.Name = @CompanyName;
 
 WITH BaseRows AS
 (
-SELECT *, LAG(HierarchyRight,1) OVER (ORDER BY HierarchyLeft) AS PreviousHierarchyLeft
+SELECT *, --the lag gets us the value of HierarchyLeft for the previous row in the tree
+		LAG(HierarchyRight,1) OVER (ORDER BY HierarchyLeft) AS PreviousHierarchyLeft
 FROM   GappedNestedSets.Company
 WHERE  HierarchyLeft >= @HierarchyLeft
  AND   HierarchyRight <= @HierarchyRight
@@ -162,7 +182,8 @@ INSERT INTO @Output
     hierarchyDisplay
 )
 SELECT CompanyId, Name, SUM(LevelConfig.LevelMethod) OVER (ORDER BY HierarchyLeft) + 1,
-		'Not Feasible','Not feasible',
+		'Not Feasible','Not feasible', --getting all the other values in the tree isn't feasible, but
+									   --replicating the cleanest view is
 		CONCAT(REPLICATE ('--> ',SUM(LevelConfig.LevelMethod) OVER (ORDER BY HierarchyLeft)),Name) AS HieararchyDisplay
 FROM   LevelConfig
 ORDER BY HierarchyLEft;
@@ -184,16 +205,19 @@ BEGIN
 
 	DECLARE @HierarchyLeft INT, @HierarchyRight INT
 
+	--translate the child companyId from parameter
 	DECLARE @CompanyId int
 	SELECT  @CompanyId = CompanyId
 	FROM  GappedNestedSets.Company
 	WHERE  Company.Name = @CompanyName;
 
+	--the the position in the tree of the row being checked as the parent row
 	SELECT @HierarchyLeft = HierarchyLeft,
 			@HierarchyRight = HierarchyRight
 	FROM   GappedNestedSets.Company
 	WHERE  Name = @CheckForChildOfCompanyName;
 
+	--see if the values of left and right of the 
 	IF EXISTS (SELECT *
 				FROM   GappedNestedSets.Company
 				WHERE  HierarchyLeft >= @HierarchyLeft
@@ -217,6 +241,8 @@ BEGIN
 --aggregating over the Hierarchy
 WITH ExpandedHierarchy AS
 (
+--fetch the rows we are going to output. Here we are getting the
+--parent and child matched up
 SELECT Company.CompanyId AS ParentCompanyId, Findrows.CompanyId AS ChildCompanyId,
 		Company.hierarchyLeft AS OrderingDevice
 from   GappedNestedSets.Company
@@ -224,7 +250,7 @@ from   GappedNestedSets.Company
 			ON FindRows.HierarchyLeft BETWEEN Company.HierarchyLeft AND Company.HierarchyRight
 ),
 FilterAndSweeten AS (
-
+	--then we filter using the retorn hierarchy proc (and get the output stuff we need for display
 	SELECT ExpandedHierarchy.*, CompanyHierarchyDisplay.HierarchyDisplay
 	from   ExpandedHierarchy
 	JOIN GappedNestedSets.[Company$ReturnHierarchy](@DisplayFromNodeName) AS CompanyHierarchyDisplay
@@ -239,6 +265,7 @@ CompanyTotals AS
 ),
 Aggregations AS 
 (
+	--Sum up rows and output, sorting by the value of their hierarcy left (which is included as OrderingDevice)
 	SELECT FilterAndSweeten.ParentCompanyId, SUM(CompanyTotals.TotalAmount) AS TotalSalesAmount,
 			MAX(HierarchyDisplay) AS HierarchyDisplay, MAX(FilterAndSweeten.OrderingDevice) AS OrderingDevice
 	FROM   FilterAndSweeten
@@ -246,6 +273,7 @@ Aggregations AS
 				ON CompanyTotals.CompanyId = FilterAndSweeten.ChildCompanyId
 	GROUP  BY FilterAndSweeten.ParentCompanyId
 )
+--ooutput the rows
 SELECT Company.CompanyId, Company.NAME, Aggregations.TotalSalesAmount, HierarchyDisplay
 FROM   GappedNestedSets.Company
 		 JOIN Aggregations

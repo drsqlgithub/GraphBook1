@@ -1,7 +1,8 @@
 --:SETVAR SchemaName SqlGraph
 --:SETVAR SchemaName AdjacencyList
-:SETVAR SchemaName PathMethod
---:SETVAR SchemaName GappedNestedSets
+--:SETVAR SchemaName PathMethod
+:SETVAR SchemaName GappedNestedSets
+--:SETVAR SchemaName KimbalHelper
 
 --change next value to -- to sent output to screen, blank to send to temp table
 :setvar OutputToTempTable ""
@@ -14,8 +15,6 @@ GO
 DROP TABLE IF EXISTS #Company$ReturnHierarchy
 DROP TABLE IF EXISTS #Company$CheckForChild
 DROP TABLE IF EXISTS #Company$ReportSales
-
-
 
 
 DROP TABLE IF EXISTS #holdTiming;
@@ -32,7 +31,7 @@ VALUES (SYSDATETIME(),'Fetch All Children','Starting')
 
 DECLARE @Rootnode VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'node1' END
 
-SELECT *
+SELECT 'Run1' AS Run, *
 $(OutputToTempTable)INTO #Company$ReturnHierarchy
 FROM $(SchemaName).Company$ReturnHierarchy (@RootNode)
 ORDER BY IdHierarchy;
@@ -42,7 +41,7 @@ ORDER BY IdHierarchy;
 DECLARE @Case2 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node100' END
 
 $(OutputToTempTable)INSERT INTO #Company$ReturnHierarchy
-SELECT *
+SELECT 'Run2',*
 FROM $(SchemaName).Company$ReturnHierarchy (@Case2)
 ORDER BY IdHierarchy;
 
@@ -89,12 +88,14 @@ DECLARE @Rootnode VARCHAR(20) = CASE (select TestSetName from $(schemaName).Data
 CREATE TABLE #Company$ReportSales(ParentCompanyId INT, Name VARCHAR(20), TotalSalesAmount DECIMAL(20,2), Hierarchy NVARCHAR(4000))
 
 $(OutputToTempTable)INSERT INTO #Company$ReportSales ( ParentCompanyId, Name, TotalSalesAmount, Hierarchy)
-EXEC $(SchemaName).Company$ReportSales @RootNode
+EXEC $(SchemaName).Company$ReportSales @Case1
 
 TRUNCATE TABLE #Company$ReportSales
 
+
 $(OutputToTempTable)INSERT INTO #Company$ReportSales ( ParentCompanyId, Name, TotalSalesAmount, Hierarchy)
-EXEC $(SchemaName).Company$ReportSales @Case1
+EXEC $(SchemaName).Company$ReportSales @RootNode
+
 GO
 
 INSERT INTO #holdTiming (CheckInTime, StepName, Location)
@@ -109,3 +110,7 @@ SELECT StepName, CONCAT(DATEDIFF(millisecond,MIN(CheckInTime), MAX(CheckInTime))
 FROM   #holdTiming
 GROUP BY StepName
 
+
+SELECT * FROM #Company$ReturnHierarchy
+SELECT * FROM #Company$CheckForChild
+SELECT * FROM #Company$ReportSales

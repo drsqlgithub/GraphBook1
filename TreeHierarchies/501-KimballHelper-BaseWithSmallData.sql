@@ -43,6 +43,7 @@ CREATE TABLE KimballHelper.CompanyHierarchyHelper
     Distance           int,
     ParentRootNodeFlag bit,
     ChildLeafNodeFlag  bit,
+
     CONSTRAINT PKCompanyHierarchyHelper PRIMARY KEY
     (
         ParentCompanyId,

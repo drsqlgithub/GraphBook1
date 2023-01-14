@@ -8,11 +8,15 @@ DROP PROCEDURE IF EXISTS SqlGraph.Sale$InsertTestData;
 DROP PROCEDURE IF EXISTS SqlGraph.Company$Reparent;
 DROP PROCEDURE IF EXISTS SqlGraph.Company$Delete;
 DROP PROCEDURE IF EXISTS SqlGraph.Company$Insert;
+DROP PROCEDURE IF EXISTS SqlGraph.Company$ReportSales
 DROP FUNCTION IF EXISTS SqlGraph.Company$returnHierarchyHelper;
+DROP FUNCTION IF EXISTS SqlGraph.Company$ReturnHierarchy;
 DROP PROCEDURE IF EXISTS SqlGraph.Sale$InsertTestData;
 DROP VIEW IF EXISTS SqlGraph.CompanyClean;
 DROP VIEW IF EXISTS SqlGraph.CompanyHierarchyDisplay;
+DROP FUNCTION IF EXISTS SqlGraph.Company$CheckForChild
 DROP TABLE IF EXISTS SqlGraph.Sale;
+DROP TABLE IF EXISTS SqlGraph.DataSetStats;
 DROP TABLE IF EXISTS SqlGraph.ReportsTo;
 DROP TABLE IF EXISTS SqlGraph.Company;
 DROP SEQUENCE IF EXISTS SqlGraph.CompanyDataGenerator_SEQUENCE;
@@ -43,7 +47,10 @@ CREATE TABLE SqlGraph.Company
          CONSTRAINT PKCompany PRIMARY KEY,
     Name VARCHAR(20) NOT NULL 
          CONSTRAINT AKCompany_Name UNIQUE,
+	RootNodeFlag bit NOT NULL CONSTRAINT DFLTCompany_RootNodeFlag DEFAULT(0)
 ) AS NODE;
+
+create unique index rootNode on SqlGraph.Company (RootNodeFlag) where RootNodeFlag = 1;
 
 --Creating the edge for a tree (as it will for a bill of materials directed acyclic graph) will all be links from a node to a node. In the edge, I will not include any columns in the edge, but you might in a real table want to include at least the time when the row was created, and maybe a time when the relationship was established (which might be the same time, but likely should not be the same column (since the relationship might have been established earlier than the row was actually created. Even on the web you might want data to go through some workflow before being inserted into your main database. Keeping this simple will just simply keep the example simple.
 CREATE TABLE SqlGraph.ReportsTo
@@ -149,12 +156,20 @@ BEGIN
                     --insert done by simply using the Name of the 
                     --parent to get the key of 
                     --the parent...
-                    INSERT INTO SqlGraph.Company(Name)
-                    SELECT @Name;
-               
-                    IF @ParentNode IS NOT NULL
+
+					IF @ParentNode IS NULL
+					 BEGIN 
+						--there are places where it is advantagous to know what node is the root node
+						--especially since we will generally just want one.
+						INSERT INTO SqlGraph.Company(Name, RootNodeFlag)
+						SELECT @Name,1;
+					 END
+					ELSE              
                      BEGIN
-                         DECLARE @ChildNode nvarchar(1000) = 
+						INSERT INTO SqlGraph.Company(Name)
+						SELECT @Name;
+
+                        DECLARE @ChildNode nvarchar(1000) = 
                                          (SELECT $node_id 
                                           FROM SqlGraph.Company 
                                           WHERE name = @Name);
@@ -248,8 +263,7 @@ GO
 --get the root
 SELECT Company.CompanyId, Company.Name, NULL AS ParentCompanyId
 FROM  SqlGraph.Company
-WHERE  $node_id NOT IN (SELECT  $to_id
-						FROM    SqlGraph.ReportsTo)
+WHERE  RootNodeFlag = 1
 UNION ALL						
 --get all the children of the root. Our tree can only have the one root since we have a UNIQUE constraint on the $to_id column
 SELECT Company.CompanyId, Company.Name, ParentCompany.CompanyId AS ParentCompanyId
@@ -293,7 +307,7 @@ FROM    SqlGraph.Company AS Company,
         SqlGraph.ReportsTo FOR PATH AS ReportsTo,
         SqlGraph.Company FOR PATH AS ReportsToCompany
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-  AND Company.Name = 'Company HQ';
+  AND Company.RootNodeFlag = 1
 GO
 
 --Using this output (plus including the Name column), I will make that a CTE and then use the level column to indent each item, and the Hierarchy column to sort by:
@@ -315,7 +329,7 @@ FROM    SqlGraph.Company AS Company,
         SqlGraph.ReportsTo FOR PATH AS ReportsTo,
         SqlGraph.Company FOR PATH AS ReportsToCompany
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-  AND Company.Name = 'Company HQ'
+  AND Company.RootNodeFlag = 1
 )
 SELECT REPLICATE('--> ',Level) + Name AS HierarchyDisplay
 FROM   BaseRows
@@ -323,29 +337,32 @@ ORDER BY Hierarchy;
 GO
 
 
-CREATE VIEW SqlGraph.CompanyHierarchyDisplay
+CREATE OR ALTER VIEW SqlGraph.CompanyHierarchyDisplay
 AS 
 WITH BaseRows AS
 (
-SELECT 0 AS Level, Company.Name AS Hierarchy ,Company.Name
+SELECT  CompanyId, 0 AS Level, Company.Name AS Hierarchy ,Company.Name
 FROM  SqlGraph.Company
 WHERE  $node_id NOT IN (SELECT  $to_id
                         FROM    SqlGraph.ReportsTo)
 UNION ALL
-SELECT    COUNT(ReportsToCompany.CompanyId) 
-                          WITHIN GROUP (GRAPH PATH) ,
+SELECT    LAST_VALUE(ReportsToCompany.CompanyId) 
+                   WITHIN GROUP (GRAPH PATH) AS CompanyId,
+		  COUNT(ReportsToCompany.CompanyId) 
+                          WITHIN GROUP (GRAPH PATH) as Level,
           Company.NAME + '->' + 
           STRING_AGG(ReportsToCompany.name, '->') 
-                       WITHIN GROUP (GRAPH PATH) AS Friends
+                       WITHIN GROUP (GRAPH PATH) AS Hierarchy
           ,LAST_VALUE(ReportsToCompany.name) 
-                   WITHIN GROUP (GRAPH PATH) AS LastNode
+                   WITHIN GROUP (GRAPH PATH) AS Name
 FROM    SqlGraph.Company AS Company, 
         SqlGraph.ReportsTo FOR PATH AS ReportsTo,
         SqlGraph.Company FOR PATH AS ReportsToCompany
 WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-  AND Company.Name = 'Company HQ'
+  and Company.RootNodeFlag = 1
+  
 )
-SELECT REPLICATE('--> ',Level) + Name AS HierarchyDisplay, Level, Name,Hierarchy
+SELECT CompanyId, REPLICATE('--> ',Level) + Name AS HierarchyDisplay, Level, Name,Hierarchy
 FROM   BaseRows;
 GO
 
