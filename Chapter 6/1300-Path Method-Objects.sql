@@ -13,7 +13,7 @@ CREATE TABLE PathMethod.Company
     CompanyId INT          NOT NULL CONSTRAINT PKCompany PRIMARY KEY,
     Name      VARCHAR(20)  NOT NULL CONSTRAINT AKCompany_Name UNIQUE,
     Path      VARCHAR(1700) NOT NULL --indexes max out at 1700 bytes. Allows for at least a 1600+ deep Hierarchy, which is very deep
-									--for most uses, but is a limitation. Removing the index could really hurt perf.
+                                             --for most uses, but is a limitation. Removing the index could really hurt perf.
 );
 
 CREATE INDEX XPath
@@ -88,23 +88,23 @@ GO
 
 CREATE OR ALTER FUNCTION PathMethod.Company$ReturnHierarchy 
 (
-	@CompanyName varchar(20)
+     @CompanyName varchar(20)
 ) 
 RETURNS @Output TABLE (CompanyId INT, Name VARCHAR(20), 
                        Level INT, Hierarchy NVARCHAR(4000), 
-					   IdHierarchy NVARCHAR(4000), 
-					   HierarchyDisplay NVARCHAR(4000))
+                            IdHierarchy NVARCHAR(4000), 
+                            HierarchyDisplay NVARCHAR(4000))
 AS
  BEGIN 
 
 DECLARE @CompanyId INT,
-		@CompanyPath varchar(12),
-		@CompanyPathReplace varchar(12)
-		
+          @CompanyPath varchar(12),
+          @CompanyPathReplace varchar(12)
+          
 --get the companyId and path for the item you want to get the child rows of
 SELECT @CompanyId = CompanyId,
-	   @CompanyPath = CONCAT('\',CompanyId,'\'),
-	   @CompanyPathReplace = Path
+        @CompanyPath = CONCAT('\',CompanyId,'\'),
+        @CompanyPathReplace = Path
 FROM   PathMethod.Company
 WHERE  Name = @CompanyName;
 
@@ -113,6 +113,7 @@ WITH BaseRows AS
 --get the child rows using the simple like expression 
 --to get child rows whose path startw with the parent
 SELECT CompanyId, Name, 
+        --make the path look like it starts at searched node
        REPLACE(path,@CompanyPathReplace,@CompanyPath) AS IdHierarchy
 FROM   PathMethod.Company
 WHERE  Path LIKE @CompanyPathReplace + '%'
@@ -128,12 +129,12 @@ INSERT INTO @Output
     hierarchyDisplay
 )
 SELECT Baserows.CompanyId, BaseRows.Name
-		, LEN(IdHierarchy) - LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-1 AS Level,
-		'Not feasible',
-		BaseRows.IdHierarchy,
-		--put in the arrows for the simple output
-		 REPLICATE('--> ',LEN(IdHierarchy) - 
-		      LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-2) + Name AS HieararchyDisplay
+          , LEN(IdHierarchy) - LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-1 AS Level,
+          'Not Feasible' as Hierarchy,
+          BaseRows.IdHierarchy,
+          --put in the arrows for the simple output
+           REPLICATE('--> ',LEN(IdHierarchy) - 
+                LEN(REPLACE(BaseRows.IdHierarchy,'\',''))-2) + Name AS HierarchyDisplay
 FROM BaseRows;
 RETURN;
 END 
@@ -141,95 +142,94 @@ END
 GO
 
 
-
 CREATE OR ALTER FUNCTION PathMethod.Company$CheckForChild
 (
-	@CompanyName varchar(20),
-	@CheckForChildOfCompanyName VARCHAR(20)
+     @CompanyName varchar(20),
+     @CheckForChildOfCompanyName VARCHAR(20)
 ) 
 RETURNS Bit
 AS 
 BEGIN
-	DECLARE @output BIT = 0;
+     DECLARE @output BIT = 0;
 
-	
-	--get the companyId of the item passed in
-	DECLARE @CompanyId INT
-	SELECT  @CompanyId = CompanyId
-	FROM   PathMethod.Company
-	WHERE  Name = @CompanyName;
+     --get the companyId of the item passed in
+     DECLARE @CompanyPath varchar(1700)
+     SELECT  @CompanyPath = Path
+     FROM   PathMethod.Company
+     WHERE  Name = @CompanyName;
 
-	--get the company id for the child
-	DECLARE @CheckForChildOfCompanyId int
-	SELECT  @CheckForChildOfCompanyId = CompanyId
-	FROM   PathMethod.Company
-	WHERE  Name = @CheckForChildOfCompanyName;
+     --get the company id for the child
+     DECLARE @CheckForChildOfCompanyPath varchar(1700)
+     SELECT  @CheckForChildOfCompanyPath = Path
+     FROM   PathMethod.Company
+     WHERE  Name = @CheckForChildOfCompanyName;
 
-	--IF the item IS A child OF the company TO check, the
-	--path will include the check for company first in the pattern,
-	--then the company id.
-	IF EXISTS (SELECT *
-				FROM   PathMethod.Company
-				WHERE  PATH LIKE CONCAT('%\',@CheckForChildOfCompanyId,'\%',
-				                        '%\',@CompanyId,'\%'))
-	  --if it was, then set to output true
-	  SET @output = 1;
+     --IF the item IS A child OF the company TO check, the
+     --path will include parent company
+     IF REPLACE(@CompanyPath,@CheckForChildOfCompanyPath, '') <> @CompanyPath
+       SET @output = 1;
 
-	RETURN @output;
+	 RETURN @output
 END;
 GO
 
 
 
-CREATE OR ALTER  PROCEDURE [PathMethod].[Company$ReportSales]
+
+CREATE OR ALTER  PROCEDURE [PathMethod].[Company$ReportSales] 
 (
-	@DisplayFromNodeName VARCHAR(20) 
+     @DisplayFromNodeName VARCHAR(20) 
 )
 as
 BEGIN
 
 --take the expanded Hierarchy...
-	WITH ExpandedHierarchy
+     WITH ExpandedHierarchy
 AS (SELECT Company.CompanyId AS ParentCompanyId, ChildRows.CompanyId AS ChildCompanyId
     FROM   PathMethod.Company
            JOIN PathMethod.Company AS ChildRows
                ON ChildRows.Path LIKE Company.Path + '%'
-	),
+     ),
 
-	--add in the formatting code and filter (less of a concern in the method
-	--as the first section does filter.
-	FilterAndSweeten AS (
+     --add in the formatting code and filter (less of a concern in the method
+     --as the first section does filter.
+     FilterAndSweeten AS (
 
-	SELECT ExpandedHierarchy.*, CompanyHierarchyDisplay.IdHierarchy
-	from   ExpandedHierarchy
-	JOIN PathMethod.[Company$ReturnHierarchy](@DisplayFromNodeName) AS CompanyHierarchyDisplay
-		ON CompanyHierarchyDisplay.CompanyId = ExpandedHierarchy.ParentCompanyId
+     SELECT ExpandedHierarchy.*, CompanyHierarchyDisplay.IdHierarchy, 
+            CompanyHierarchyDisplay.HierarchyDisplay
+     from   ExpandedHierarchy
+     JOIN PathMethod.[Company$ReturnHierarchy](@DisplayFromNodeName) AS CompanyHierarchyDisplay
+          ON CompanyHierarchyDisplay.CompanyId = ExpandedHierarchy.ParentCompanyId
 
-	)
-	,
-	--get totals for each Company for the aggregate
-	CompanyTotals AS
-	(
-		SELECT CompanyId, SUM(Amount) AS TotalAmount
-		FROM   PathMethod.Sale
-		GROUP BY CompanyId
-	),
-	--aggregate each Company for the Company
-	Aggregations AS (
-	SELECT FilterAndSweeten.ParentCompanyId,SUM(CompanyTotals.TotalAmount) AS TotalSalesAmount,MAX(FilterAndSweeten.IdHierarchy) AS IdHiearchy
-	FROM   FilterAndSweeten
-			 LEFT JOIN CompanyTotals
-				ON CompanyTotals.CompanyId = FilterAndSweeten.ChildCompanyId
-	GROUP  BY FilterAndSweeten.ParentCompanyId)
+     )
+     ,
+     --get totals for each Company for the aggregate
+     CompanyTotals AS
+     (
+          SELECT CompanyId, SUM(Amount) AS TotalAmount
+          FROM   PathMethod.Sale
+          GROUP BY CompanyId
+     ),
+     --aggregate each Company for the Company
+     Aggregations AS (
+     SELECT FilterAndSweeten.ParentCompanyId,SUM(CompanyTotals.TotalAmount) AS TotalSalesAmount,
+             MAX(FilterAndSweeten.IdHierarchy) AS IdHiearchy,
+             MAX(FilterAndSweeten.HierarchyDisplay) AS HiearachyDisplay
+     FROM   FilterAndSweeten
+                LEFT JOIN CompanyTotals
+                    ON CompanyTotals.CompanyId = FilterAndSweeten.ChildCompanyId
+     GROUP  BY FilterAndSweeten.ParentCompanyId)
 
-	--display the data...
-	SELECT Company.CompanyId, Company.Name,  Aggregations.TotalSalesAmount,Aggregations.IdHiearchy
-	FROM   PathMethod.Company 
-			JOIN Aggregations
-			ON Company.CompanyID = Aggregations.ParentCompanyID
-	ORDER BY Company.CompanyId
-		
+     --display the data...
+     SELECT Company.CompanyId, Company.Name,  Aggregations.TotalSalesAmount,Aggregations.HiearachyDisplay
+     FROM   PathMethod.Company 
+               JOIN Aggregations
+               ON Company.CompanyID = Aggregations.ParentCompanyID
+     ORDER BY Aggregations.IdHiearchy
+          
 
 END;
 GO
+
+
 

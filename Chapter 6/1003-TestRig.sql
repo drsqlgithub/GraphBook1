@@ -1,8 +1,7 @@
---:SETVAR SchemaName SqlGraph
---:SETVAR SchemaName AdjacencyList
+:SETVAR SchemaName SqlGraph
 --:SETVAR SchemaName PathMethod
-:SETVAR SchemaName GappedNestedSets
---:SETVAR SchemaName KimbalHelper
+--:SETVAR SchemaName Helper
+
 
 --change next value to -- to sent output to screen, blank to send to temp table
 :setvar OutputToTempTable ""
@@ -18,38 +17,41 @@ DROP TABLE IF EXISTS #Company$ReportSales
 
 
 DROP TABLE IF EXISTS #holdTiming;
-SELECT SYSDATETIME() AS CheckInTime, CONCAT('_',(SELECT TestSetName FROM $(schemaName).DataSetStats),'_$(SchemaName)') AS StepName,'Starting' AS Location
+SELECT SYSDATETIME() AS CheckInTime, cast(CONCAT('_',(SELECT TestSetName FROM $(schemaName).DataSetStats),'_$(SchemaName)') as varchar(30)) AS StepName,'Starting' AS Location
 INTO  #holdTiming;
 GO
 
 SELECT *
-FROM   PathMethod.Datasetstats
-
-INSERT INTO #holdTiming (CheckInTime, StepName, Location)
-VALUES (SYSDATETIME(),'Fetch All Children','Starting')
+FROM   $(SchemaName).Datasetstats
 
 
-DECLARE @Rootnode VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'node1' END
+if '$(SchemaName)' <> 'Helper'
+ BEGIN
 
-SELECT 'Run1' AS Run, *
-$(OutputToTempTable)INTO #Company$ReturnHierarchy
-FROM $(SchemaName).Company$ReturnHierarchy (@RootNode)
-ORDER BY IdHierarchy;
+	INSERT INTO #holdTiming (CheckInTime, StepName, Location)
+	VALUES (SYSDATETIME(),'Fetch All Children','Starting')
 
+	DECLARE @Rootnode VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'node1' END
 
-
-DECLARE @Case2 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node100' END
-
-$(OutputToTempTable)INSERT INTO #Company$ReturnHierarchy
-SELECT 'Run2',*
-FROM $(SchemaName).Company$ReturnHierarchy (@Case2)
-ORDER BY IdHierarchy;
+	SELECT 'Run1' AS Run, *
+	$(OutputToTempTable)INTO #Company$ReturnHierarchy
+	FROM $(SchemaName).Company$ReturnHierarchy (@RootNode)
+	ORDER BY IdHierarchy;
 
 
+
+	DECLARE @Case2 VARCHAR(20) = CASE (SELECT TestSetName FROM $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Maine HQ' ELSE 'Node100' END
+
+	$(OutputToTempTable)INSERT INTO #Company$ReturnHierarchy
+	SELECT 'Run2',*
+	FROM $(SchemaName).Company$ReturnHierarchy (@Case2)
+	ORDER BY IdHierarchy;
+
+	INSERT INTO #holdTiming (CheckInTime, StepName, Location)
+	VALUES (SYSDATETIME(),'Fetch All Children','Ending')
+ END
 
 GO
-INSERT INTO #holdTiming (CheckInTime, StepName, Location)
-VALUES (SYSDATETIME(),'Fetch All Children','Ending')
 
 GO
 INSERT INTO #holdTiming (CheckInTime, StepName, Location)
@@ -85,7 +87,7 @@ GO
 DECLARE @Rootnode VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Company HQ' ELSE 'Node1' END,
 		@Case1 VARCHAR(20) = CASE (select TestSetName from $(schemaName).DataSetStats) WHEN 'SmallSet' THEN 'Tennessee HQ' ELSE 'Node40' END
 
-CREATE TABLE #Company$ReportSales(ParentCompanyId INT, Name VARCHAR(20), TotalSalesAmount DECIMAL(20,2), Hierarchy NVARCHAR(4000))
+CREATE TABLE #Company$ReportSales(ParentCompanyId INT, Name VARCHAR(20), TotalSalesAmount DECIMAL(20,2), Hierarchy VARCHAR(max))
 
 $(OutputToTempTable)INSERT INTO #Company$ReportSales ( ParentCompanyId, Name, TotalSalesAmount, Hierarchy)
 EXEC $(SchemaName).Company$ReportSales @Case1
@@ -111,6 +113,6 @@ FROM   #holdTiming
 GROUP BY StepName
 
 
-SELECT * FROM #Company$ReturnHierarchy
-SELECT * FROM #Company$CheckForChild
-SELECT * FROM #Company$ReportSales
+--SELECT * FROM #Company$ReturnHierarchy
+--SELECT * FROM #Company$CheckForChild
+--SELECT * FROM #Company$ReportSales
