@@ -26,7 +26,8 @@ Fun Vittles                Fun Vittles
 Funville Trolley Station   Funville->Funville Trolley Station
 Happy Fun Resort Trolley   Funville->Funville Trolley Station->Happy Fun Resort Trolley
 
---This is simple. But lets take a look at the structure this time, but starting at the root node. Note that we are including both contains and related to items at this point. When working with something like geography there may or may not be a physical overlap. In t
+--This is simple. But lets take a look at the structure this time, but starting at the root node. Note that we are including both contains and related to items at this point. When working with something like geography there may or may not be a physical overlap. In my model items can be related to other items if they aren't fully contained. In a real geography model there can be overlaps geographically. For example, in some states in the US, you can be in a county and a city at the same time. 
+--However, geographies should be a DAG becuse while you can be in a city and county at the same time, it is not a reciprocal relationship. The county can't be in you, and you in the county. This is why I designed the trolley to be a related item. In my fully fleshed out model (which gets decidedly too complex to do in a chapter), 
 
 USE ImagesDirectory
 GO

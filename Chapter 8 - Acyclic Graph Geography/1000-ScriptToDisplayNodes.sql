@@ -14,7 +14,7 @@ DECLARE @EdgeAttributeExpression nvarchar(4000) = 'RelationshipType'
 
 --used to determine formatting of name in output
 DECLARE @DefaultNodeType nvarchar(100) = '?' --I want to output them all 
-DECLARE @DefaultEdgeType nvarchar(100) = '?'
+DECLARE @DefaultEdgeType nvarchar(100) = 'RelatedTo'
 DECLARE @LabelNonDefaultEdgeFlag bit = 1
 
 
@@ -56,6 +56,7 @@ CREATE TABLE #EdgeOutput
 (
 	EdgeSchema varchar(1000),
 	EdgeTable  varchar(1000),
+	EdgeAttribute varchar(1000),
 	FromNodeOutputId int NULL,
 	ToNodeOutputId int NULL,
 	EdgeName	 varchar(100)
@@ -112,9 +113,10 @@ WHILE 1=1
         CASE WHEN ''' + REPLACE(@EdgeName,'''','''''') +''' <> ''' + REPLACE(@DefaultEdgeType,'''','''''') + ''' THEN ''' + REPLACE(@EdgeName,'''','''''') + ''' ELSE '''' END AS EdgeName 
  FROM ' + QUOTENAME(@SchemaName) + '.' + QUOTENAME(@EdgeName) + '
  )
- INSERT INTO #EdgeOutput(EdgeSchema, EdgeTable, FromNodeOutputId, ToNodeOutputId, EdgeName)
+ INSERT INTO #EdgeOutput(EdgeSchema, EdgeTable, EdgeAttribute, FromNodeOutputId, ToNodeOutputId, EdgeName)
  SELECT ''' + REPLACE(@SchemaName,'''','''''') + ''' AS EdgeSchema,
 		''' + REPLACE(@EdgeName,'''','''''') + ''' as EdgeName,
+		''' + cast (@EdgeAttributeExpression as varchar(128)) + ''' as EdgeAttributeExpression,
 		FromNodeOutput.NodeOutputId AS FromNodeOutputId, 
 	    ToNodeOutput.NodeOutputId AS ToNodeOutputId, 
 		EdgeName
@@ -148,7 +150,7 @@ SELECT '#'
 
 --get the edges and their names
 INSERT INTO @Output(outputValue)
-SELECT CONCAT(#EdgeOutput.FromNodeOutputId, ' ', #EdgeOutput.ToNodeOutputId, ' ',#EdgeOutput.EdgeName) FROM #EdgeOutput
+SELECT CONCAT(#EdgeOutput.FromNodeOutputId, ' ', #EdgeOutput.ToNodeOutputId, ' ',#EdgeOutput.EdgeName ) FROM #EdgeOutput
 
 --return the output value, which I am pasting into a file for simplicity sake. Could easily be automated, but this was
 --easy enough
