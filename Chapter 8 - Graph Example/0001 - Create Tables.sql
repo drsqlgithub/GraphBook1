@@ -34,7 +34,7 @@ CREATE SCHEMA SocialGraph;
 GO
 
 CREATE TABLE SocialGraph.Account (
-   AccountHandle nvarchar(30) CONSTRAINT AKAccount UNIQUE,
+   AccountHandle nvarchar(30) CONSTRAINT AKAccount_Handle UNIQUE,
    CONSTRAINT PKAccount PRIMARY KEY ($node_id)
 ) AS NODE;
 
@@ -65,7 +65,7 @@ END;
 GO
 
 CREATE TABLE SocialGraph.Interest (
-    InterestName nvarchar(30) CONSTRAINT AKInterest UNIQUE,
+    InterestName nvarchar(30) CONSTRAINT AKInterest_InterestName UNIQUE,
 	CONSTRAINT PKInterest PRIMARY KEY ($node_id)
 ) AS NODE;
 
@@ -251,5 +251,15 @@ GO
 --FROM   SocialGraph.AllEdges
 --GO
 
+GO
+CREATE SCHEMA Staging;
+GO
+CREATE TABLE Staging.Interest (
+	InterestId  INT IDENTITY CONSTRAINT AKInterest_InterestID PRIMARY KEY,
+    InterestName nvarchar(30) CONSTRAINT AKInterest UNIQUE
+);
 
-
+CREATE TABLE Staging.Account (
+   AccountId INT NOT NULL IDENTITY CONSTRAINT PKAccount PRIMARY KEY,
+   AccountHandle nvarchar(30) CONSTRAINT AKAccount_Handle UNIQUE
+); 

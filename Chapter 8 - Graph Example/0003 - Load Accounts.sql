@@ -1,10 +1,11 @@
 USE SocialGraph
 GO
 SET NOCOUNT ON;
-DELETE FROM SocialGraph.Account
+DELETE FROM Staging.Account
 
+DBCC CHECKIDENT('Staging.Account',RESEED); --Identity used to set number of interests
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Tonia_Mueller'),
 (N'@Cassandra_Villegas'),
@@ -66,7 +67,6 @@ VALUES
 (N'@Claudia_Peck'),
 (N'@Nancy_Mcpherson'),
 (N'@Demond_Bird'),
-(NULL),
 (N'@Ginger_Richmond'),
 (N'@Mark_Maynard'),
 (N'@Patrice_Mc_Lean'),
@@ -1007,7 +1007,7 @@ VALUES
 (N'@Latanya_Sims'),
 (N'@Rosemary_Wise')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Melisa_Dorsey'),
 (N'@Eduardo_Keller'),
@@ -2010,7 +2010,7 @@ VALUES
 (N'@Gregg_Ware'),
 (N'@Salvador_Macias')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Tracie_Newman'),
 (N'@Anne_Ortiz'),
@@ -3013,7 +3013,7 @@ VALUES
 (N'@Kenya_Chavez'),
 (N'@Stanley_Erickson')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Trent_Villanueva'),
 (N'@Ruth_Arias'),
@@ -4016,7 +4016,7 @@ VALUES
 (N'@Maggie_Harris'),
 (N'@Steve_Ashley')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jimmie_Swanson'),
 (N'@Sophia_Bernard'),
@@ -5019,7 +5019,7 @@ VALUES
 (N'@Becky_Roth'),
 (N'@Dan_Brock')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Caleb_Zavala'),
 (N'@Angelina_Mc_Guire'),
@@ -6022,7 +6022,7 @@ VALUES
 (N'@Vicky_Callahan'),
 (N'@Sherman_Conner')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Andre_Roach'),
 (N'@Kristy_Charles'),
@@ -7025,7 +7025,7 @@ VALUES
 (N'@Jesus_Lang'),
 (N'@Scotty_Morgan')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Lewis_Montes'),
 (N'@Marissa_Salinas'),
@@ -8028,7 +8028,7 @@ VALUES
 (N'@Raymond_Mc_Clure'),
 (N'@Casey_Kemp')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Andrea_Mack'),
 (N'@Janette_Noble'),
@@ -9031,7 +9031,7 @@ VALUES
 (N'@Lakesha_Carlson'),
 (N'@Allan_Navarro')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Andre_Steele'),
 (N'@Faith_Chambers'),
@@ -10034,7 +10034,7 @@ VALUES
 (N'@Ginger_Odonnell'),
 (N'@Alma_Potts')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Tyson_Avila'),
 (N'@Guy_Parks'),
@@ -11037,7 +11037,7 @@ VALUES
 (N'@Bryant_Richards'),
 (N'@Sherri_Pugh')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Amelia_Ewing'),
 (N'@Debbie_Benitez'),
@@ -12040,7 +12040,7 @@ VALUES
 (N'@Karrie_Wyatt'),
 (N'@Harold_Fisher')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Teddy_Dunn'),
 (N'@Francis_Lucas'),
@@ -13043,7 +13043,7 @@ VALUES
 (N'@Dina_Cohen'),
 (N'@Sophia_Johnson')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Irma_Summers'),
 (N'@Damon_Hebert'),
@@ -14046,7 +14046,7 @@ VALUES
 (N'@Jim_Ballard'),
 (N'@Wendell_Humphrey')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Thomas_Fischer'),
 (N'@Christina_Banks'),
@@ -15049,7 +15049,7 @@ VALUES
 (N'@Danielle_Yoder'),
 (N'@Leah_Reyes')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Johnny_Burnett'),
 (N'@Lance_Lin'),
@@ -16052,7 +16052,7 @@ VALUES
 (N'@Gloria_Garza'),
 (N'@Alana_Luna')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Rene_Travis'),
 (N'@Scot_Rojas'),
@@ -17055,7 +17055,7 @@ VALUES
 (N'@Brooke_Richards'),
 (N'@Clarissa_Washington')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Nina_Moyer'),
 (N'@Felipe_Miller'),
@@ -18058,7 +18058,7 @@ VALUES
 (N'@Meghan_Carney'),
 (N'@Brandy_Wolf')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Kari_Blevins'),
 (N'@Raymond_Bryan'),
@@ -19061,7 +19061,7 @@ VALUES
 (N'@Marjorie_Munoz'),
 (N'@Stacy_Wong')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Tyson_Mckee'),
 (N'@Jamal_Anthony'),
@@ -20064,7 +20064,7 @@ VALUES
 (N'@Karen_Anderson'),
 (N'@Esther_Osborn')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Stacy_Pitts'),
 (N'@Kareem_Powers'),
@@ -21067,7 +21067,7 @@ VALUES
 (N'@Angela_Delgado'),
 (N'@Tamara_Higgins')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Francis_Baxter'),
 (N'@Chanda_Krause'),
@@ -22070,7 +22070,7 @@ VALUES
 (N'@Ralph_Hunt'),
 (N'@Judith_Rhodes')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Gilbert_Griffin'),
 (N'@Cody_Landry'),
@@ -23073,7 +23073,7 @@ VALUES
 (N'@Colin_Yu'),
 (N'@Adrienne_Torres')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sally_Roberson'),
 (N'@Julia_Stephens'),
@@ -24076,7 +24076,7 @@ VALUES
 (N'@Antonio_Robbins'),
 (N'@Lara_Crane')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Alexis_Harper'),
 (N'@Ira_Mueller'),
@@ -25079,7 +25079,7 @@ VALUES
 (N'@Simon_Lutz'),
 (N'@Guy_Perry')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jerome_Gonzalez'),
 (N'@Jody_Hancock'),
@@ -26082,7 +26082,7 @@ VALUES
 (N'@Janet_Hensley'),
 (N'@Angelica_Compton')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Kelley_Dyer'),
 (N'@Grant_Shaffer'),
@@ -27085,7 +27085,7 @@ VALUES
 (N'@Jean_Compton'),
 (N'@Sheryl_Serrano')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Ethan_Fry'),
 (N'@Kim_Griffin'),
@@ -28088,7 +28088,7 @@ VALUES
 (N'@Enrique_Butler'),
 (N'@Terri_Quinn')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Suzanne_Haley'),
 (N'@Kelvin_Wells'),
@@ -29091,7 +29091,7 @@ VALUES
 (N'@Hilary_Keith'),
 (N'@Shane_Mc_Intyre')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Marshall_Franklin'),
 (N'@Rhonda_Pollard'),
@@ -30094,7 +30094,7 @@ VALUES
 (N'@Isaac_Mack'),
 (N'@Louis_Conway')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Ricardo_Mathis'),
 (N'@Manuel_Craig'),
@@ -31097,7 +31097,7 @@ VALUES
 (N'@Terrence_Stark'),
 (N'@Kevin_Payne')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Henry_Yu'),
 (N'@Lonnie_Burch'),
@@ -32100,7 +32100,7 @@ VALUES
 (N'@Lawrence_Herman'),
 (N'@Lea_Huber')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Lynette_Mason'),
 (N'@Lakeisha_Tucker'),
@@ -33103,7 +33103,7 @@ VALUES
 (N'@Margaret_Barker'),
 (N'@Chastity_Gibson')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Edgar_Maynard'),
 (N'@Sammy_Yang'),
@@ -34106,7 +34106,7 @@ VALUES
 (N'@Dan_Benitez'),
 (N'@Deborah_Ferguson')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Janice_Perez'),
 (N'@Marianne_Rollins'),
@@ -35109,7 +35109,7 @@ VALUES
 (N'@Stefanie_Manning'),
 (N'@Jay_Jacobson')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Dean_Cantu'),
 (N'@Richard_Orozco'),
@@ -36112,7 +36112,7 @@ VALUES
 (N'@Hugh_Schroeder'),
 (N'@Danielle_Choi')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sam_Phelps'),
 (N'@Damon_Forbes'),
@@ -37115,7 +37115,7 @@ VALUES
 (N'@Cassandra_Curtis'),
 (N'@Debbie_Robbins')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Lora_Cabrera'),
 (N'@Debra_Watts'),
@@ -38118,7 +38118,7 @@ VALUES
 (N'@Tia_Pollard'),
 (N'@Shelby_Price')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sonya_Contreras'),
 (N'@Victoria_Wells'),
@@ -39121,7 +39121,7 @@ VALUES
 (N'@Marcy_Berg'),
 (N'@Robin_Farrell')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Cara_Rubio'),
 (N'@Alvin_Hayes'),
@@ -40124,7 +40124,7 @@ VALUES
 (N'@Blake_Luna'),
 (N'@Joanna_Navarro')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Anitra_Sawyer'),
 (N'@Leticia_Fleming'),
@@ -41127,7 +41127,7 @@ VALUES
 (N'@Jon_Foster'),
 (N'@Edward_Hoover')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Dora_Johnston'),
 (N'@Tia_Rowe'),
@@ -42130,7 +42130,7 @@ VALUES
 (N'@Floyd_Pope'),
 (N'@Virgil_Hopkins')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jeanine_Nunez'),
 (N'@Tommy_Tate'),
@@ -43133,7 +43133,7 @@ VALUES
 (N'@Frances_Norman'),
 (N'@Joanna_Woods')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Scottie_Bernard'),
 (N'@Jess_Rivas'),
@@ -44136,7 +44136,7 @@ VALUES
 (N'@Brendan_Wang'),
 (N'@Nancy_Durham')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Shana_Mc_Neil'),
 (N'@Mary_Keller'),
@@ -45139,7 +45139,7 @@ VALUES
 (N'@Serena_Mcclain'),
 (N'@Xavier_Kerr')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Stacey_Whitaker'),
 (N'@Audra_Brown'),
@@ -46142,7 +46142,7 @@ VALUES
 (N'@Bret_Conrad'),
 (N'@Preston_Bryan')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sonya_Bird'),
 (N'@Stefanie_Braun'),
@@ -47145,7 +47145,7 @@ VALUES
 (N'@Jared_Gilbert'),
 (N'@Lance_Baker')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Brad_Camacho'),
 (N'@Alfonso_Mckee'),
@@ -48148,7 +48148,7 @@ VALUES
 (N'@Marcella_O''Neal'),
 (N'@Lynn_Leblanc')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Edgar_Lopez'),
 (N'@Cory_Decker'),
@@ -49151,7 +49151,7 @@ VALUES
 (N'@Olivia_Malone'),
 (N'@Bethany_Estrada')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Lorena_Scott'),
 (N'@Bethany_Richard'),
@@ -50154,7 +50154,7 @@ VALUES
 (N'@Kristi_Vasquez'),
 (N'@Sonny_Foley')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Seth_Rose'),
 (N'@Allen_Patrick'),
@@ -51157,7 +51157,7 @@ VALUES
 (N'@Veronica_May'),
 (N'@Wendy_Obrien')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jerry_Roy'),
 (N'@Amber_Cisneros'),
@@ -52160,7 +52160,7 @@ VALUES
 (N'@Jayson_Case'),
 (N'@Penny_Hardy')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Caroline_Kirk'),
 (N'@Cynthia_Reeves'),
@@ -53163,7 +53163,7 @@ VALUES
 (N'@Carol_Frye'),
 (N'@Rachael_Zhang')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Cedric_Rogers'),
 (N'@Loren_Macias'),
@@ -54166,7 +54166,7 @@ VALUES
 (N'@Rafael_Conner'),
 (N'@Stephanie_Riddle')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Rick_Butler'),
 (N'@Jimmy_Werner'),
@@ -55169,7 +55169,7 @@ VALUES
 (N'@Geoffrey_Owen'),
 (N'@Christine_Bailey')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Glen_Lin'),
 (N'@Virgil_Bishop'),
@@ -56172,7 +56172,7 @@ VALUES
 (N'@Rene_Love'),
 (N'@Tami_Young')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Andy_Luna'),
 (N'@Kristian_Williamson'),
@@ -57175,7 +57175,7 @@ VALUES
 (N'@Raul_Case'),
 (N'@Ricardo_Caldwell')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@David_Jefferson'),
 (N'@Jack_Davies'),
@@ -58178,7 +58178,7 @@ VALUES
 (N'@Vickie_Stout'),
 (N'@Brandon_Ali')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Roberta_Noble'),
 (N'@Jocelyn_Rubio'),
@@ -59181,7 +59181,7 @@ VALUES
 (N'@Rogelio_Richmond'),
 (N'@Erik_Ryan')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Elisabeth_Kelley'),
 (N'@Sophia_White'),
@@ -60184,7 +60184,7 @@ VALUES
 (N'@Timmy_Trevino'),
 (N'@Nathaniel_Patel')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Kristian_Gilbert'),
 (N'@Shannon_Diaz'),
@@ -61187,7 +61187,7 @@ VALUES
 (N'@Courtney_Moreno'),
 (N'@Dina_Mueller')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Cassandra_Andrade'),
 (N'@Lakeisha_Anthony'),
@@ -62190,7 +62190,7 @@ VALUES
 (N'@Colby_Brown'),
 (N'@Helen_Graham')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Kristina_Foley'),
 (N'@Jolene_Glenn'),
@@ -63193,7 +63193,7 @@ VALUES
 (N'@Marcella_Mills'),
 (N'@Stacey_Aguirre')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Shari_Eaton'),
 (N'@Shaun_Erickson'),
@@ -64196,7 +64196,7 @@ VALUES
 (N'@Salvador_Webb'),
 (N'@Todd_Merritt')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Mitchell_Stuart'),
 (N'@Byron_Davila'),
@@ -65199,7 +65199,7 @@ VALUES
 (N'@Joe_Mcfarland'),
 (N'@Trisha_Gray')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Susan_Malone'),
 (N'@Ronald_Diaz'),
@@ -66202,7 +66202,7 @@ VALUES
 (N'@Kristy_Buckley'),
 (N'@Colleen_Graham')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jeff_Livingston'),
 (N'@Alexandra_Dalton'),
@@ -67205,7 +67205,7 @@ VALUES
 (N'@Marlon_Boone'),
 (N'@Claire_Bennett')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Brian_Tapia'),
 (N'@Summer_Dean'),
@@ -68208,7 +68208,7 @@ VALUES
 (N'@Steve_Spencer'),
 (N'@Billy_Reed')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Walter_Haley'),
 (N'@Willie_Nielsen'),
@@ -69211,7 +69211,7 @@ VALUES
 (N'@Shonda_Archer'),
 (N'@Jamie_Pitts')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Dorothy_Owens'),
 (N'@Staci_Mc_Mahon'),
@@ -70214,7 +70214,7 @@ VALUES
 (N'@Melvin_Richardson'),
 (N'@Dominic_Gallagher')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Brendan_Shields'),
 (N'@Mandi_Walsh'),
@@ -71217,7 +71217,7 @@ VALUES
 (N'@Kendrick_Barber'),
 (N'@Molly_Solis')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sally_Mullen'),
 (N'@Wendi_Saunders'),
@@ -72220,7 +72220,7 @@ VALUES
 (N'@Jane_Terrell'),
 (N'@Tonya_Parsons')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Robin_Petersen'),
 (N'@Mitchell_Cruz'),
@@ -73223,7 +73223,7 @@ VALUES
 (N'@Oliver_Gallegos'),
 (N'@Stephen_Gill')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Dennis_Boone'),
 (N'@Gary_Pace'),
@@ -74226,7 +74226,7 @@ VALUES
 (N'@Steven_Shannon'),
 (N'@Gina_Fry')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Vicki_Chan'),
 (N'@Candace_Ortiz'),
@@ -75229,7 +75229,7 @@ VALUES
 (N'@Tracie_Osborn'),
 (N'@Jo_Grimes')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Lloyd_Buchanan'),
 (N'@Joanne_Mathis'),
@@ -76232,7 +76232,7 @@ VALUES
 (N'@Cheri_Molina'),
 (N'@Angela_Young')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Greg_Levy'),
 (N'@Luke_Swanson'),
@@ -77235,7 +77235,7 @@ VALUES
 (N'@Sandra_Harmon'),
 (N'@Marsha_Saunders')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Kirk_Zuniga'),
 (N'@Adrienne_Mc_Dowell'),
@@ -78238,7 +78238,7 @@ VALUES
 (N'@Jasmine_Walls'),
 (N'@Elizabeth_Kim')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Gena_Shepherd'),
 (N'@Tameka_Hurst'),
@@ -79241,7 +79241,7 @@ VALUES
 (N'@Howard_Golden'),
 (N'@Israel_Mc_Mahon')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Jake_Lawson'),
 (N'@Deana_Taylor'),
@@ -80244,7 +80244,7 @@ VALUES
 (N'@Chandra_Mccall'),
 (N'@Damian_Sharp')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Albert_Fitzgerald'),
 (N'@Mandy_Bowen'),
@@ -81247,7 +81247,7 @@ VALUES
 (N'@Margarita_Long'),
 (N'@Derrick_Bass')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Gabriela_Wolf'),
 (N'@Stacy_Charles'),
@@ -82250,7 +82250,7 @@ VALUES
 (N'@Christine_Cain'),
 (N'@Cory_Greer')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Linda_Arellano'),
 (N'@Molly_Ingram'),
@@ -83253,7 +83253,7 @@ VALUES
 (N'@Alyssa_Horton'),
 (N'@Sally_Bullock')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Ramona_Jacobs'),
 (N'@Alejandro_Townsend'),
@@ -84256,7 +84256,7 @@ VALUES
 (N'@Hollie_Parsons'),
 (N'@Micheal_Harrell')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Christina_Warner'),
 (N'@Kimberley_Yoder'),
@@ -85259,7 +85259,7 @@ VALUES
 (N'@Jennifer_Franco'),
 (N'@Joshua_Kidd')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Sophia_Rocha'),
 (N'@Suzanne_Webster'),
@@ -86262,7 +86262,7 @@ VALUES
 (N'@Faith_Cordova'),
 (N'@Denise_Hardin')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Vickie_Cunningham'),
 (N'@Bret_Murillo'),
@@ -87265,7 +87265,7 @@ VALUES
 (N'@Heath_Espinoza'),
 (N'@Garrett_Lindsey')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Luz_Hubbard'),
 (N'@Luz_Burke'),
@@ -88268,7 +88268,7 @@ VALUES
 (N'@Dan_Velez'),
 (N'@Nathaniel_Lam')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Derrick_Everett'),
 (N'@Susan_Atkinson'),
@@ -89271,7 +89271,7 @@ VALUES
 (N'@Andre_Bishop'),
 (N'@Teri_Hodges')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Melissa_Bernard'),
 (N'@Stacy_Hopkins'),
@@ -90274,7 +90274,7 @@ VALUES
 (N'@Donald_Bishop'),
 (N'@Gerard_Jensen')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Gail_Rush'),
 (N'@Lee_Hinton'),
@@ -91277,7 +91277,7 @@ VALUES
 (N'@Shana_Haynes'),
 (N'@Kristine_Cantrell')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@John_Orr'),
 (N'@Alex_Neal'),
@@ -92280,7 +92280,7 @@ VALUES
 (N'@Celeste_Ramos'),
 (N'@Angel_Morris')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Zachary_Small'),
 (N'@Brandie_Copeland'),
@@ -93283,7 +93283,7 @@ VALUES
 (N'@Arnold_Reyes'),
 (N'@Sylvia_Strickland')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Caleb_Downs'),
 (N'@Leo_Neal'),
@@ -94286,7 +94286,7 @@ VALUES
 (N'@Blanca_Cantu'),
 (N'@Trisha_Collins')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Edith_Graham'),
 (N'@Lashonda_Briggs'),
@@ -95289,7 +95289,7 @@ VALUES
 (N'@Gloria_Pruitt'),
 (N'@Everett_Burgess')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Marilyn_Lawson'),
 (N'@Marilyn_Gilbert'),
@@ -96292,7 +96292,7 @@ VALUES
 (N'@Marcie_Moss'),
 (N'@Julie_Moran')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Marilyn_Lawrence'),
 (N'@Curtis_Roy'),
@@ -97295,7 +97295,7 @@ VALUES
 (N'@Jean_Beltran'),
 (N'@Traci_Best')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Leslie_Holt'),
 (N'@Paula_Powell'),
@@ -98298,7 +98298,7 @@ VALUES
 (N'@Alan_Price'),
 (N'@Raymond_Durham')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Dwayne_Baxter'),
 (N'@Candace_Cook'),
@@ -99301,7 +99301,7 @@ VALUES
 (N'@Albert_Wong'),
 (N'@Jorge_Arroyo')
 
-INSERT INTO SocialGraph.Account(AccountHandle)
+INSERT INTO Staging.Account(AccountHandle)
 VALUES
 (N'@Bennie_Gentry'),
 (N'@Nathaniel_Harris'),
@@ -100304,4 +100304,8 @@ VALUES
 (N'@Rudy_Greene'),
 (N'@Kristi_Chambers' )
 
-DELETE FROM SocialGraph.Account WHERE AccountHandle is NULL;
+insert INTO Staging.Account (AccountHandle) 
+VALUES (N'@Frank_McGoo' );
+
+
+SELECT COUNT(*) FROM Staging.Account;

@@ -13,8 +13,8 @@
 --Then I will implement several of the types of queries you might do with a bill of materials.
 --1. Determining if a part is used in a build
 --2. Picking items for a build
---3. Printing out the parts list for a build
---4. Summing the number of parts uses in a build
+--3. Printing and summing out the parts list for a build
+
 
 Use BillOfMaterialsExample;
 GO
@@ -31,9 +31,7 @@ CREATE TABLE PartsSystem.Part(
 	PartId	int NOT NULL IDENTITY
 		CONSTRAINT PKPart PRIMARY KEY,
 	PartName  nvarchar(30) NOT NULL 
-	         CONSTRAINT AKPart UNIQUE,
-	AssemblyItemCode char(1) NULL,
-	AssemblyPartName nvarchar(30) NOT NULL
+	         CONSTRAINT AKPart UNIQUE
 ) as NODE;
 
 CREATE TABLE PartsSystem.Includes

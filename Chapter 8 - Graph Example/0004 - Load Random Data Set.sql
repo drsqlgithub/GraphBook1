@@ -2,18 +2,47 @@
 This file is used to generate random values for testing out the graph that is implemented in 0001 - Create Tables.sql (after executing 0002 - Load Interests.sql and 0003 - Load Accounts.sql.) It uses RAND() to generate random data, but aslo it includes a seed value that allows you to use the exact same dataset that I use.
 */
 
+:SETVAR SeedValue 259906607
+
+--Max 100000
+:SETVAR AccountCount 5
+--Max 434
+:SETVAR InterestCount 8
+
+:SETVAR FollowsCount 20
+
+:SETVAR MaxInterestPerAccount 8
+
+
 USE SocialGraph;
 GO
---NOTE: Some errors are acceptable. in the seed provided, there are a few random errors
---There will be 299993 follows, and 700902
 
 TRUNCATE TABLE SocialGraph.Follows;
 TRUNCATE TABLE SocialGraph.InterestedIn;
 SET NOCOUNT ON;
+DELETE FROM SocialGraph.Account;
+DELETE FROM SocialGraph.Interest;
+
+INSERT INTO SocialGraph.Account(AccountHandle)
+SELECT AccountHandle
+FROM   Staging.Account
+WHERE  AccountId <= $(AccountCount);
+
+INSERT INTO SocialGraph.Interest(InterestName)
+SELECT InterestName
+FROM   Staging.Interest
+WHERE  InterestId <= $(InterestCount);
+
+
+
+--NOTE: Some errors are acceptable. in the seed provided, there are a few random errors
+--There will be 299993 follows, and 700902
+
+
 
 DECLARE @seed INT, --set this to a specific number to get repeatable set
 	    @msg nvarchar(1000)
-SET @seed = 259906607
+SET @seed = $(SeedValue)
 SET @seed = COALESCE(@seed,2147483647 * RAND())
 
 DECLARE @InstantiateSeed INT = RAND(@seed)
@@ -36,7 +65,7 @@ FROM   SocialGraph.Account
 ORDER BY AccountHandle
 
 
-DECLARE @RowsToInsert INT = 300000, @CurrentCount INT = 0, 
+DECLARE @RowsToInsert INT = $(FollowsCount), @CurrentCount INT = 0, 
 		@RowsInAccount INT = (SELECT COUNT(*) FROM SocialGraph.Account)
 WHILE 1=1
  BEGIN
@@ -95,7 +124,7 @@ FROM   SocialGraph.Interest
 ORDER BY Interest.InterestName
 
 DECLARE @Cursor CURSOR, @FromId NVARCHAR(1000), @RandomInterestCount INT, 
-		@MaxInterestCount INT = 15, @RowLoopCounter INT, 
+		@MaxInterestCount INT = $(MaxInterestPerAccount), @RowLoopCounter INT, 
 		@RowsInInterest INT = (SELECT COUNT(*) FROM SocialGraph.Interest),
 		@GetId INT, @AccountLoopCounter INT = 0
 		 
@@ -132,7 +161,6 @@ WHILE 1=1
 		RAISERROR ('Another 5000 Account''s Interests Generated',10,1) WITH NOWAIT;
   END;
 GO
-
 
 ALTER INDEX ALL ON SocialGraph.Account REBUILD
 ALTER INDEX ALL ON SocialGraph.InterestedIn REBUILD

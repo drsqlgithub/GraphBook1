@@ -3,6 +3,17 @@
 --use to capture timing
 --*****
 ----------------------------------------------------------------------------------------------------------
+USE SocialGraph;
+GO
+SELECT COUNT(*) AS AccountCount
+FROM   SocialGraph.Account;
+SELECT COUNT(*) AS FollowsCount
+FROM   SocialGraph.Follows;
+SELECT COUNT(*) AS InterestCount
+FROM   SocialGraph.Interest;
+SELECT COUNT(*) AS InterestedInCount
+FROM   SocialGraph.InterestedIn;
+
 
 DROP TABLE IF EXISTS Tempdb.dbo.CaptureTime ;
 DROP PROCEDURE IF EXISTS #CaptureTime$Set;
@@ -124,6 +135,7 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+))
 SELECT *
 FROM   BaseRows
 WHERE  ConnectedToAccountHandle = '@Keisha_Perkins'
+OPTION (MAXDOP 1);
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
 --find the path to a given node using temp table, very fast
@@ -159,6 +171,7 @@ FROM   SocialGraph.Account AS Account1
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) AND LAST_NODE(Account2)-(InterestedIn)->Interest)
   AND  Account1.AccountHandle = '@Bryant_Huber'
 ORDER BY ConnectedPath
+OPTION (MAXDOP 1);
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
@@ -197,6 +210,7 @@ SELECT *
 FROM   #BaseRows
 WHERE  InterestName = 'Glassblowing'
 ORDER BY ConnectedPath
+OPTION (MAXDOP 1);
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
@@ -228,6 +242,7 @@ FROM   SocialGraph.Account AS Account1
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) AND LAST_NODE(Account2)-(InterestedIn)->Interest)
   AND  Account1.AccountHandle = '@Bryant_Huber'  
   ANd  Interest.InterestName =  'Glassblowing'
+ OPTION (MAXDOP 1);
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
@@ -262,10 +277,12 @@ FROM   SocialGraph.Account AS Account1
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) AND LAST_NODE(Account2)-(InterestedIn)->Interest)
   AND  Account1.AccountHandle = '@Toby_Higgins'  
 
+
 SELECT *
 FROM   #BaseRows
 WHERE  ConnectedToAccountHandle = '@Jamie_Hawkins'
 ORDER BY ConnectedPath
+OPTION (MAXDOP 1);
 
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
@@ -304,6 +321,7 @@ SELECT *
 FROM   BaseRows
 WHERE  ConnectedToAccountHandle = '@Jamie_Hawkins'
 ORDER BY ConnectedPath
+OPTION (MAXDOP 1);
 
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
@@ -335,7 +353,7 @@ FROM   SocialGraph.Account AS Account1
 				   ,SocialGraph.Interest AS Interest
 WHERE  MATCH(Account1-(InterestedIn1)->Interest<-(InterestedIn2)-Account2)
   AND  Account1.AccountHandle = '@Bryant_Huber'
-
+OPTION (MAXDOP 1);
 
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
@@ -367,7 +385,8 @@ FROM   SocialGraph.Account AS Account1
 				   ,SocialGraph.Interest AS Interest
 WHERE  MATCH(Account1-(InterestedIn1)->Interest<-(InterestedIn2)-Account2)
   AND  Account1.AccountHandle = '@Bryant_Huber'
-  AND  Interest.InterestName = 'Relaxing';
+  AND  Interest.InterestName = 'Relaxing'
+OPTION (MAXDOP 1);
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
@@ -398,6 +417,7 @@ FROM   SocialGraph.Account AS Account1
 				   ,SocialGraph.Interest FOR PATH AS Interest
 WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest<-(InterestedIn2)-Account2){1,2}))
   AND  Account1.AccountHandle = '@Darren_Sellers'
+OPTION (MAXDOP 1);
 --OPTION(MAXDOP 1, RECOMPILE)
 
 
@@ -416,7 +436,7 @@ GO
 
 
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Connection path through interest,  with high cardinality',
+                            @TestSetName = 'Connection path through interest,  with high cardinality'
 
 SELECT Account1.AccountHandle 
 + '->' + 
@@ -430,7 +450,8 @@ FROM   SocialGraph.Account AS Account1
 				   ,SocialGraph.Interest FOR PATH AS Interest
 WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest<-(InterestedIn2)-Account2){1,2}))
   AND  Account1.AccountHandle = '@Bryant_Huber'
-OPTION(MAXDOP 1, RECOMPILE)
+--OPTION (MAXDOP 1);
+OPTION(MAXDOP 1, RECOMPILE);
 
 
 DECLARE @RowsAffectedCount INT = @@ROWCOUNT
