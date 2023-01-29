@@ -17,8 +17,8 @@
 
 :Setvar Account3 @Darren_Sellers
 
---change to -- if you want to see query results
-:Setvar OutputResults ""
+--change to -- if you do not want to see query results
+:Setvar OutputResults "--"
 
 
 USE SocialGraph;
@@ -72,10 +72,10 @@ GO
 
 
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Simple find all decendents'  -- varchar(1000)
+                            @TestSetName = '1 - Simple find all decendents'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults1;
 
 --1
 SELECT LAST_VALUE(Account2.AccountHandle) 
@@ -83,8 +83,9 @@ SELECT LAST_VALUE(Account2.AccountHandle)
 	   COUNT(Account2.AccountHandle) 
 	           WITHIN GROUP (GRAPH PATH) AS LEVEL,
        STRING_AGG(Account2.AccountHandle, '->') 
-               WITHIN GROUP (GRAPH PATH) AS ConnectedPath
-$(OutputResults)INTO #HoldResults
+               WITHIN GROUP (GRAPH PATH) AS ConnectedPath,
+		'1' AS example
+INTO #HoldResults1
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
                    ,SocialGraph.Follows FOR PATH AS Follows
@@ -92,10 +93,12 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+))
   AND  Account1.AccountHandle = '$(Account1)'
 ORDER BY ConnectedPath;
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults1);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Simple find all decendents',
+                            @TestSetName = '1 - Simple find all decendents',
 							@RowsAffectedCount = @RowsAffectedCount
+
+$(OutputResults)SELECT * FROM #HoldResults1
 GO
 
 
@@ -108,10 +111,10 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Simple find specific decendent, using where clause'  -- varchar(1000)
+                            @TestSetName = '2 -Simple find specific decendent, using where clause'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults2;
 
 --2
 WITH BaseRows AS (
@@ -125,16 +128,19 @@ FROM   SocialGraph.Account AS Account1
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+))
   AND  Account1.AccountHandle = '$(Account1)'
 )
-SELECT *
-$(OutputResults)INTO #HoldResults
+SELECT *,
+		'2' AS example
+INTO #HoldResults2
 FROM   BaseRows
 WHERE  ConnectedToAccountHandle = '$(Account1ConnectedTo)'
 OPTION (MAXDOP 1);
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults2)
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Simple find specific decendent, using where clause',
+                            @TestSetName = '2 - Simple find specific decendent, using where clause',
 							@RowsAffectedCount = @RowsAffectedCount
+
+$(OutputResults)SELECT * FROM #HoldResults2
 GO
 
 ----------------------------------------------------------------------------------------------------------
@@ -145,9 +151,9 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Simple find specific decendent, using temptable'  -- varchar(1000)
+                            @TestSetName = '3 - Simple find specific decendent, using temptable'  -- varchar(1000)
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults3;
 DROP TABLE IF EXISTS #Hold;
 
 --3
@@ -163,16 +169,18 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+))
   AND  Account1.AccountHandle = '$(Account1)'
 ORDER BY ConnectedPath;
 
-SELECT *
-$(OutputResults)INTO #HoldResults
+SELECT *,
+		'3' AS example
+INTO #HoldResults3
 FROM   #hold
 WHERE  ConnectedToAccountHandle = '$(Account1ConnectedTo)';
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults3)
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Simple find specific decendent, using temptable',
+                            @TestSetName = '3 - Simple find specific decendent, using temptable',
 							@RowsAffectedCount = @RowsAffectedCount
 
+$(OutputResults)SELECT * FROM #HoldResults3
 GO
 
 ----------------------------------------------------------------------------------------------------------
@@ -183,14 +191,15 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Find two level connections just using MATCH'  -- varchar(1000)
+                            @TestSetName = '4 - Find two level connections just using MATCH'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults4;
 
 --4
-SELECT  1 AS Level, '' AS ConnectedThrough, Account2.AccountHandle
-$(OutputResults)INTO #holdResults
+SELECT  1 AS Level, '' AS ConnectedThrough, Account2.AccountHandle,
+		'4' AS example
+INTO #holdResults4
 FROM    SocialGraph.Account AS Account1,
         SocialGraph.Follows,
 		SocialGraph.Account AS Account2
@@ -198,7 +207,8 @@ WHERE   MATCH(Account1-(Follows)->Account2)
   AND   Account1.AccountHandle = '$(Account1)'
   AND   Account2.AccountHandle = '$(Account1ConnectedToInTwo)'
 UNION ALL
-SELECT  2 AS Level, Account2.AccountHandle AS ConnectedThrough, Account3.AccountHandle
+SELECT  2 AS Level, Account2.AccountHandle AS ConnectedThrough, Account3.AccountHandle,
+		'4' AS example
 FROM    SocialGraph.Account AS Account1,
         SocialGraph.Follows,
 		SocialGraph.Account AS Account2,
@@ -210,11 +220,14 @@ WHERE   MATCH(Account1-(Follows)->Account2-(Follows2)->Account3)
 ORDER BY AccountHandle
 
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #holdResults4)
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Find two level connections just using MATCH',
+                            @TestSetName = '4 - Find two level connections just using MATCH',
 							@RowsAffectedCount = @RowsAffectedCount
+
+$(OutputResults)SELECT * FROM #HoldResults4
 
 ----------------------------------------------------------------------------------------------------------
 --*****
@@ -224,10 +237,10 @@ EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Find all paths between decendents using Follows, recursive'  -- varchar(1000)
+                            @TestSetName = '5 - Find all paths between decendents using Follows, recursive'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults5;
 
 --Getting the same results as the last example
 --5
@@ -268,17 +281,20 @@ AS (
 	            AND BaseRows.level < @MaxLevel
 	)
 
-SELECT Path --for space reasons only
-$(OutputResults)INTO #holdResults
+SELECT Path,
+		'5' AS example --for space reasons only
+INTO #holdResults5
 FROM BaseRows
 WHERE FollowsAccountHandle = @DetermineHowConnected
 ORDER BY Path;
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults5);
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Find all paths between decendents using Follows, recursive',
-							@RowsAffectedCount = @RowsAffectedCount
+                            @TestSetName = '5 - Find all paths between decendents using Follows, recursive',
+							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults5;
 GO
 
 
@@ -290,18 +306,19 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Any level follow and followers have specific interest'  -- varchar(1000)
+                            @TestSetName = '6 - Any level follow and followers have specific interest'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults6;
 --6
 ----any level connection and connections have a specific interest
 SELECT Account1.AccountHandle + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
 	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL,
-	   Interest.InterestName
-$(OutputResults)INTO #HoldResults
+	   Interest.InterestName,
+		'6' AS example
+INTO #HoldResults6
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
                    ,SocialGraph.Follows FOR PATH AS Follows
@@ -314,10 +331,12 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
 ORDER BY ConnectedPath
 OPTION (MAXDOP 1);
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults6);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Any level follow and followers have specific interest',
+                            @TestSetName = '6 - Any level follow and followers have specific interest',
 							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults6
 GO
 
 ----------------------------------------------------------------------------------------------------------
@@ -328,10 +347,10 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Any level follow and followers have specific interest, temptable'  -- varchar(1000)
+                            @TestSetName = '7 - Any level follow and followers have specific interest, temptable'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults7;
 
 --7
 --any level connection and shared specific interest
@@ -352,17 +371,21 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
   AND  Account1.AccountHandle = '$(Account1)'
 OPTION (MAXDOP 1);
 
-SELECT *
-$(OutputResults)INTO #HoldResults
+SELECT *,
+		'7' AS example
+INTO #HoldResults7
 FROM   #BaseRows
 WHERE  InterestName = '$(Account1Interest1)'
 ORDER BY ConnectedPath
 
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults7);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Any level follow and followers have specific interest, temptable',
+                            @TestSetName = '7 - Any level follow and followers have specific interest, temptable',
 							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults7
+
 GO
 
 
@@ -377,10 +400,10 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Any level follow and shared interest, CTE'  -- varchar(1000)
+                            @TestSetName = '8 - Any level follow and shared interest, CTE'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults8;
 
 --8
 WITH BaseRows AS (
@@ -401,17 +424,20 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
   AND  Account1.AccountHandle = '$(Account1)'
 
 )
-SELECT InterestName, ConnectedPath
-$(OutputResults)INTO #HoldResults
+SELECT InterestName, ConnectedPath,
+		'8' AS example
+INTO #HoldResults8
 FROM   BaseRows
 WHERE  ConnectedToAccountHandle = '$(Account1ConnectedToViaInterest)'
 ORDER BY ConnectedPath
 OPTION (MAXDOP 1);
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults8);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Any level follow and shared interest, CTE',
+                            @TestSetName = '8 - Any level follow and shared interest, CTE',
 							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults8
 GO
 
 
@@ -423,10 +449,10 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'any level connection and shared specific interest'  -- varchar(1000)
+                            @TestSetName = '9 - any level connection and shared specific interest'  -- varchar(1000)
 GO
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults9;
 
 --any level connection and shared specific interest
 --9 Query to get only 
@@ -434,8 +460,9 @@ SELECT Account1.AccountHandle + '->' +
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
 	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL,
-	   Interest.InterestName AS InterestName
-$(OutputResults)INTO #HoldResults
+	   Interest.InterestName AS InterestName,
+		'9' AS example
+INTO #HoldResults9
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
                    ,SocialGraph.Follows FOR PATH AS Follows
@@ -449,10 +476,12 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
  OPTION (MAXDOP 1);
 
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT;
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults9);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'any level connection and shared specific interest',
+                            @TestSetName = '9 - any level connection and shared specific interest',
 							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults9
 GO
 
 
@@ -468,14 +497,15 @@ GO
 
 
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Finding users that a person is connected to directly through specific interest'
+                            @TestSetName = '10 - Finding users that a person is connected to directly through specific interest'
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults10;
 --10
 SELECT Account1.AccountHandle,
 		Interest.InterestName,
-		Account2.AccountHandle AS ToAccountHandle
-$(OutputResults)INTO #HoldResults
+		Account2.AccountHandle AS ToAccountHandle,
+		'10' AS example
+INTO #HoldResults10
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account AS Account2
 				   ,SocialGraph.InterestedIn AS InterestedIn1
@@ -487,10 +517,12 @@ WHERE  MATCH(Account1-(InterestedIn1)->Interest<-(InterestedIn2)-Account2)
   AND  Interest.InterestName = '$(Account1Interest2)'
 OPTION (MAXDOP 1);
 
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults10);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Finding users that a person is connected to directly through specific interest',
-							@RowsAffectedCount = @RowsAffectedCount
+                            @TestSetName = '10 - Finding users that a person is connected to directly through specific interest',
+							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults10
 
 GO
 
@@ -502,17 +534,18 @@ GO
 
 
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Connection path through interest, starting with low cardinality, two levels'
+                            @TestSetName = '11 - Connection path through interest, starting with low cardinality, 2 levels'
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults11;
 
 --11
 SELECT Account1.AccountHandle 
 + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL
-$(OutputResults)INTO #HoldResults       
+	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL,
+		'11' AS example
+INTO #HoldResults11  
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
 				   ,SocialGraph.InterestedIn FOR PATH AS InterestedIn1
@@ -522,11 +555,12 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest<-(InterestedIn2)-
   AND  Account1.AccountHandle = '$(Account3)'
 OPTION (MAXDOP 1);
 
-
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults11);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Connection path through interest, starting with low cardinality, two levels',
-							@RowsAffectedCount = @RowsAffectedCount
+                            @TestSetName = '11 - Connection path through interest, starting with low cardinality, 2 levels',
+							@RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults11
 
 GO
 
@@ -536,17 +570,18 @@ GO
 --*****
 ----------------------------------------------------------------------------------------------------------
 
-DROP TABLE IF EXISTS #HoldResults;
+DROP TABLE IF EXISTS #HoldResults11a;
 
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = 'Connection path through interest, starting with low cardinality, 10 levels'
-
+                            @TestSetName = '11a - Connection path through interest, a bit higher cardinality, 10 levels'
+--11a
 SELECT Account1.AccountHandle 
 + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL
-$(OutputResults)INTO #HoldResults  
+	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL,
+		'11a' AS example
+INTO #HoldResults11a
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
 				   ,SocialGraph.InterestedIn FOR PATH AS InterestedIn1
@@ -557,14 +592,15 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest<-(InterestedIn2)-
 OPTION (MAXDOP 1);
 
 
-
-DECLARE @RowsAffectedCount INT = @@ROWCOUNT
+DECLARE @RowsAffectedCount INT = (SELECT COUNT(*) FROM #HoldResults11a);
 EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
-                            @TestSetName = 'Connection path through interest, starting with low cardinality, 10 levels',
-							@RowsAffectedCount = @RowsAffectedCount
+      @TestSetName = '11a - Connection path through interest, a bit higher cardinality, 10 levels',
+      @RowsAffectedCount = @RowsAffectedCount;
+
+$(OutputResults)SELECT * FROM #HoldResults11a
 
 GO
-----------------------------------------------------------------------------------------------------------
+----------------------------------------------------------
 --*****
 --Output timing details
 --*****
@@ -582,10 +618,11 @@ WHERE c2.ProcessPart = 'End'
   AND c1.ProcessPart = 'Start'
 ORDER BY c2.CaptureTime
 
-SELECT c1.TestSetname , DATEDIFF(SECOND,c1.CaptureTime,SYSDATETIME()) AS TimeDifferenceSeconds,C1.CaptureTime, 'Not Completed'
-FROM   Tempdb.dbo.CaptureTime AS C1
-WHERE c1.ProcessPart = 'Start'
-  AND  NOT EXISTS (SELECT *
-					FROM tempdb.dbo.CaptureTime
-					WHERE CaptureTime.TestSetName = C1.TestSetname
-					   AND  CaptureTime.CaptureId -1 = C1.CaptureId)
+--SELECT c1.TestSetname , DATEDIFF(SECOND,c1.CaptureTime,SYSDATETIME()) AS TimeDifferenceSeconds,C1.CaptureTime, 'Not Completed'
+--FROM   Tempdb.dbo.CaptureTime AS C1
+--WHERE c1.ProcessPart = 'Start'
+--  AND  NOT EXISTS (SELECT *
+--					FROM tempdb.dbo.CaptureTime
+--					WHERE CaptureTime.TestSetName = C1.TestSetname
+--					   AND  CaptureTime.CaptureId -1 = C1.CaptureId)
+
