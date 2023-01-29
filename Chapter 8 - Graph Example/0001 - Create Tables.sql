@@ -34,7 +34,11 @@ CREATE SCHEMA SocialGraph;
 GO
 
 CREATE TABLE SocialGraph.Account (
-   AccountHandle nvarchar(30) CONSTRAINT AKAccount_Handle UNIQUE,
+   AccountHandle nvarchar(30) 
+	CONSTRAINT AKAccount_Handle UNIQUE,
+   --clusters on Node_id columns. Most fetches
+   --will be on node_id, Handle usually only 
+   --when getting first row(s)
    CONSTRAINT PKAccount PRIMARY KEY ($node_id)
 ) AS NODE;
 
@@ -42,11 +46,17 @@ CREATE TABLE SocialGraph.Account (
 CREATE TABLE SocialGraph.Follows (
    FollowTime datetime2(0) 
       CONSTRAINT DFLTFollows_FollowTime DEFAULT SYSDATETIME(),
-      CONSTRAINT AKFollows_UniqueNodes UNIQUE CLUSTERED ( $from_id, $to_id),
-	  CONSTRAINT AKFollows_FromTo UNIQUE ( $to_id, $from_id),
+	 --cannot add a PRIMARY KEY to the $from_id and $to_id columns
+     --because they allow NULL values. SO the UNIQUE CLUSTERED index
+      CONSTRAINT AKFollows_UniqueNodes UNIQUE CLUSTERED ( $to_id, $from_id),
+	  --same columns, in reverse for when you are fetching by $to_id
+	  --like for fetching follower, not who you follow
+	  CONSTRAINT AKFollows_FromTO UNIQUE ( $from_id, $to_id),
 
+	  --just allow connections from Account to Account
 	  CONSTRAINT ECFollows_AccountToAccount 
-	    CONNECTION (SocialGraph.Account TO SocialGraph.Account) ON DELETE NO Action
+	    CONNECTION (SocialGraph.Account 
+		  TO SocialGraph.Account) ON DELETE NO Action
 ) AS EDGE;
 GO
 
@@ -74,8 +84,8 @@ CREATE TABLE SocialGraph.InterestedIn
 	CONSTRAINT AKInterestedIn_UniqueNodes UNIQUE CLUSTERED ($from_id, $to_id),
 	CONSTRAINT AKInterestedIn_ToFrom UNIQUE ($to_id, $from_id),
 	CONSTRAINT ECInterestedIn_AccountToInterestBoth 
-	     CONNECTION (SocialGraph.Account TO SocialGraph.Interest,
-		             SocialGraph.Interest TO SocialGraph.Account) ON DELETE NO ACTION,)
+	     CONNECTION (SocialGraph.Account TO SocialGraph.Interest) ON DELETE NO ACTION
+)
 AS EDGE;
 
 SELECT is_node, is_edge, name

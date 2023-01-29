@@ -17,6 +17,9 @@ This file is used to generate random values for testing out the graph that is im
 USE SocialGraph;
 GO
 
+TRUNCATE TABLE SocialGraph.Follows;
+TRUNCATE TABLE SocialGraph.InterestedIn;
+SET NOCOUNT ON;
 DELETE FROM SocialGraph.Account;
 DELETE FROM SocialGraph.Interest;
 
@@ -35,9 +38,7 @@ WHERE  InterestId <= $(InterestCount);
 --NOTE: Some errors are acceptable. in the seed provided, there are a few random errors
 --There will be 299993 follows, and 700902
 
-TRUNCATE TABLE SocialGraph.Follows;
-TRUNCATE TABLE SocialGraph.InterestedIn;
-SET NOCOUNT ON;
+
 
 DECLARE @seed INT, --set this to a specific number to get repeatable set
 	    @msg nvarchar(1000)

@@ -4,13 +4,13 @@
     "\\Chapter 3",
     "\\Chapter 4",
     "\\Chapter 5",
-    "\\Chapter 5b - Acyclic Graph Geography",
     "\\Chapter 6",
-    "\\Chapter 7",
+    "\\Chapter 7 - Directed Acyclic Graph Example",
+    "\\Chapter 8 - Graph Example",
     "\\Classifications",
-    "\\Old GraphDbExamples",
-    "\\TreeHierarchies"
+    "\\GraphViewer",
+    "\\z_Remove - Acyclic Graph Geography"
   ],
-  "SelectedNode": "\\Chapter 6\\1491-NestedSets-LargeSet.sql",
+  "SelectedNode": "\\Chapter 7 - Directed Acyclic Graph Example\\0001-Create Objects.sql",
   "PreviewInSolutionExplorer": false
 }
