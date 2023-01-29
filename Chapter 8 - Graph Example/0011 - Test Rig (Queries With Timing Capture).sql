@@ -103,6 +103,7 @@ GO
 
 
 
+
 ----------------------------------------------------------------------------------------------------------
 --*****
 --Finding a specific decendent by saving off ALL decendents, filtering rows using a CTE
@@ -111,7 +112,7 @@ GO
 
 --find the path to a given node using temp table, very fast
 EXEC dbo.#CaptureTime$set @ProcessPart = 'Start', -- varchar(10)
-                            @TestSetName = '2 -Simple find specific decendent, using where clause'  -- varchar(1000)
+                            @TestSetName = '2 - Simple find specific decendent, using where clause'  -- varchar(1000)
 GO
 
 DROP TABLE IF EXISTS #HoldResults2;
@@ -472,7 +473,7 @@ FROM   SocialGraph.Account AS Account1
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) 
   AND LAST_NODE(Account2)-(InterestedIn)->Interest<-(InterestedIn2)-Account1)
   AND  Account1.AccountHandle = '$(Account1)'  
-  AND  Interest.InterestName =  '$(Account1Interest1)'
+  AND  Interest.InterestName =  '$(Account1Interest2)'
  OPTION (MAXDOP 1);
 
 
@@ -600,6 +601,7 @@ EXEC dbo.#CaptureTime$set @ProcessPart = 'End', -- varchar(10)
 $(OutputResults)SELECT * FROM #HoldResults11a
 
 GO
+
 ----------------------------------------------------------
 --*****
 --Output timing details
@@ -618,11 +620,4 @@ WHERE c2.ProcessPart = 'End'
   AND c1.ProcessPart = 'Start'
 ORDER BY c2.CaptureTime
 
---SELECT c1.TestSetname , DATEDIFF(SECOND,c1.CaptureTime,SYSDATETIME()) AS TimeDifferenceSeconds,C1.CaptureTime, 'Not Completed'
---FROM   Tempdb.dbo.CaptureTime AS C1
---WHERE c1.ProcessPart = 'Start'
---  AND  NOT EXISTS (SELECT *
---					FROM tempdb.dbo.CaptureTime
---					WHERE CaptureTime.TestSetName = C1.TestSetname
---					   AND  CaptureTime.CaptureId -1 = C1.CaptureId)
 
