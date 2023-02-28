@@ -1,3 +1,9 @@
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--SQL Graph Table Basics
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
 IF EXISTS (SELECT * FROM SYS.databases WHERE name = 'TestGraph')
 	ALTER DATABASE TestGraph SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 GO
@@ -7,6 +13,13 @@ GO
 
 DROP DATABASE IF EXISTS TestGraph;
 GO
+
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Object Creation
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
 
 CREATE DATABASE TestGraph;
 GO
@@ -50,6 +63,13 @@ FROM   sys.tables
 WHERE  tables.is_edge = 1
     OR tables.is_node = 1;
 GO
+
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Creating Data
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
 
 --adding node rows is exactly like adding rows to any table
 INSERT INTO Network.Person(FirstName, LastName)
@@ -127,7 +147,7 @@ These are all abbreviated as $edge_id, $from_id, $to_id. The latter two take as 
 INSERT INTO Network.Follows($from_id, $to_id)
 SELECT (   SELECT Person.$node_id
            FROM   Network.Person
-           WHERE  Person.FirstName = 'fred'
+           WHERE  Person.FirstName = 'Fred'
                AND Person.LastName = 'Rick') AS from_id, --just a name to make it easier to see when debugging
        (   SELECT Person.$node_id
            FROM   Network.Person
@@ -265,6 +285,7 @@ SELECT (   SELECT Person.$node_id
            WHERE  Person.FirstName = 'Saa'
                AND Person.LastName = 'Lee');
 GO
+
 --the following query is something you rarely want to do (joining on the internal values directly). But this query is directly analagous to what our simplest graph query will do.
 SELECT Person.Name AS PersonName,
        FollowedPerson.Name AS FollowedPersonName
@@ -290,9 +311,23 @@ Day Vid        Saa Lee
 
 This will match all the directed edge lines in Figure 1
 
---briefly explaing the basic MATCH operator, and how this query is the way it works
-
 */
+
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Querying Data
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Node to Node Querying
+--*****
+----------------------------------------------------------------------------------------------------------
+
+
+----briefly explaing the basic MATCH operator, and how this query is the way it works
+
 SELECT      CAST(Person.Name AS nvarchar(20)) AS PersonName,
             FollowedPerson.Name AS FollowedPersonName
 FROM        Network.Person,
@@ -351,16 +386,22 @@ SELECT      CAST(Person.Name AS nvarchar(20)) AS PersonName,
 FROM        Network.Person,
             Network.Follows,
             Network.Person AS FollowedPerson,
-(   SELECT 'blue' AS ColorName
-    UNION ALL
-    SELECT 'red') AS Colors
+            (   SELECT 'blue' AS ColorName
+                UNION ALL
+                SELECT 'red') AS Colors
 WHERE MATCH(Person-(Follows)->FollowedPerson)
+               --join clause to the derived table
                AND CASE WHEN Person.FirstName = 'Fred'
                             THEN 'blue'
                         ELSE 'red'
                    END = Colors.ColorName;
 
+
 --and there is no way to do an outer join, so you will need to take care to write your joins safely to not lose data accidentally
+
+----------------------------------------------------------------------------------------------------------
+--Filtering Output
+----------------------------------------------------------------------------------------------------------
 
 --you filter the output the same as in any query. Like to just see the people that Lou Iss follows:
 SELECT CAST(Person.Name AS nvarchar(20)) AS PersonName,
@@ -399,14 +440,18 @@ Fred Rick Lou Iss
 
 --you can do more than one match statement together. To make this easier, I am going to add a new node and edge to the graph for programming language like seen in Figure 2
 
---add figure 2
+
+----------------------------------------------------------------------------------------------------------
+--Multiple Match Expressions
+----------------------------------------------------------------------------------------------------------
+
+
+
 
 CREATE TABLE Network.ProgrammingLanguage
 (
     Name nvarchar(30) NOT NULL
 ) AS NODE;
-
-CREATE TABLE Network.ProgramsWith AS EDGE;
 
 --load the nodes
 INSERT INTO Network.ProgrammingLanguage(Name)
@@ -414,6 +459,8 @@ VALUES('C++'),
       ('T-SQL'),
       ('Fortran');
 
+
+CREATE TABLE Network.ProgramsWith AS EDGE;
 --then load some data
 
 --just like before I will add rows like this:
@@ -549,6 +596,7 @@ FROM        Network.Person AS Person,
             Network.ProgramsWith AS ProgramsWith2
 WHERE MATCH(Person-(ProgramsWith)->ProgrammingLanguage AND Person2-(ProgramsWith2)->ProgrammingLanguage)
                AND Person2.PersonId <> Person.PersonId
+			   AND Person.Name = 'Lou Iss'
 ORDER BY    1;
 
 --In this next query, I will look for people who follow each other and share a programming language. These types of queries, with the generic many-to-many tables are part of the great power with the sql graph objects.
@@ -573,10 +621,20 @@ ORDER BY    Person, Person2, Name;
 Person       Person2       Name
 ------------ ------------- ------------------------------
 Lou Iss      Val Erry      T-SQL
-Val Erry     Lee Roy       Fortran
-Val Erry     Lee Roy       T-SQL
-Saa Lee     Lee Roy       Fortran
 */
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Traversing Variable Level Paths
+--*****
+----------------------------------------------------------------------------------------------------------
+
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Displaying last node in the path
+--*****
+----------------------------------------------------------------------------------------------------------
 
 --traversing paths, using shortest path
 
@@ -608,6 +666,10 @@ from   Network.Person as Person, Network.Follows for path as Follows, Network.Pe
 where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
  and   MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+));
 
+ ----------------------------------------------------------------------------------------------------------
+ --Aggregation Along the Path
+ ----------------------------------------------------------------------------------------------------------
+ 
  --now lets add a bit to the output. You can do aggregates such as count. Count is the standard way to get the number of hops between nodes. For example:
 
 SELECT Person.Name AS Person,
@@ -697,6 +759,10 @@ where  Person.FirstName = 'Lou' and Person.LastName = 'Iss'
 
 --You control the number of levels to search (which can be really important with some very large networks, in the SHORTEST_PATH syntax.
 
+----------------------------------------------------------------------------------------------------------
+--Controlling depth of processing
+----------------------------------------------------------------------------------------------------------
+
 --show everyone linked at any level, along with their path
 SELECT STRING_AGG(FollowedPerson.Name, '->') WITHIN GROUP (GRAPH PATH),
 		COUNT(FollowedPerson.PersonId) WITHIN GROUP (GRAPH PATH) as LEVEL
@@ -746,6 +812,9 @@ SELECT *
 FROM   BaseRows
 WHERE  Level BETWEEN 2 AND 3;
 
+----------------------------------------------------------------------------------------------------------
+--Filtering for one path
+----------------------------------------------------------------------------------------------------------
 
  --several filters will need to be handled in a CTE Like if you just want to see links from Lou Iss to Lee Roy
 
@@ -768,6 +837,9 @@ WHERE ConnectedPerson = 'Lee Roy'; --probably ought to use a surrogate or name p
 --here in production code
 GO
 
+----------------------------------------------------------------------------------------------------------
+--Finding all paths between nodes
+----------------------------------------------------------------------------------------------------------
 
 --IF you want to do something more in depth like a weighted path cost, you will need to resort to doing a recursive query. This can be really costly for large graphs because unlike a shortest path, you have to consider every possible path between nodes (in fact you will need to process every single node that connectes to your starting point. Even the longest path in number of hops can actually be the cheapest path.
 
@@ -822,7 +894,10 @@ FROM BaseRows
 WHERE BaseRows.Name = 'Lee Roy';
 GO
 
---Finally, this example shows adding sums for weighting as noted
+
+----------------------------------------------------------------------------------------------------------
+--Weighted graph calculations
+----------------------------------------------------------------------------------------------------------
 
 DECLARE @FirstName NVARCHAR(100) = N'Lou';
 DECLARE @LastName NVARCHAR(100) = N'Iss';
@@ -928,3 +1003,25 @@ SELECT TOP 1 WITH TIES BaseRows.Path,
 FROM   BaseRows
 WHERE  BaseRows.Name = 'Lee Roy'
 ORDER BY BaseRows.WeightedCost ASC;
+
+----------------------------------------------------------------------------------------------------------
+--Checking conditions on the matched item
+----------------------------------------------------------------------------------------------------------
+
+SELECT  LAST_VALUE(FollowedPerson.Name) 
+             WITHIN GROUP (GRAPH PATH) AS ConnectedPerson,
+        STRING_AGG(FollowedPerson.Name, '->') 
+             WITHIN GROUP (GRAPH PATH) AS Path
+FROM   Network.Person AS Person,
+       Network.Follows FOR PATH AS Follows,
+       Network.Person FOR PATH AS FollowedPerson,
+       Network.ProgramsWith AS ProgramsWith,
+       Network.ProgrammingLanguage
+WHERE  Person.FirstName = 'Lou'
+    AND Person.LastName = 'Iss'
+    AND MATCH(SHORTEST_PATH(Person(-(Follows)->FollowedPerson)+)
+          --Note, this is valid syntax. The -> can be on a 
+          --different line
+          AND LAST_NODE(FollowedPerson)-(ProgramsWith)
+                            ->ProgrammingLanguage)
+    AND ProgrammingLanguage.NAME = 'C++';

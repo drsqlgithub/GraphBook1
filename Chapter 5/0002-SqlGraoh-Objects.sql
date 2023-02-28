@@ -26,12 +26,20 @@ In this chapter we are going to implement a tree using SQL Server graph tables u
 */
 
 ----------------------------------------------------------------------------------------------------------
---*****
---Creating the structure
---*****
+--********************************************************************************************************
+--Creating the data structures
+--********************************************************************************************************
 ----------------------------------------------------------------------------------------------------------
 
 --to get started, I am going to create a schema with a few tables. The schema is named for the algorithm/pattern we are using, because it will let me vary the pattern in multiple ways for different methods of implementing a tree. As mentioned back in Chapter 2, thee are a number of method that I wil cover in varying levels of detail. I will spend this chapter on the SQL graph method, then cover the other methods in the next chapter in brief (While the exact same stored procedures for loading the structures will be in the downloads, including all of the test scripts, I will only discuss them at a hight level.
+
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Base Table Structures
+--*****
+----------------------------------------------------------------------------------------------------------
+
 
 DROP SCHEMA IF EXISTS SqlGraph;
 GO
@@ -70,6 +78,12 @@ ALTER TABLE SqlGraph.ReportsTo
 
 CREATE INDEX FromId ON SqlGraph.ReportsTo($from_id);
 
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Demo Sales Structure
+--*****
+----------------------------------------------------------------------------------------------------------
 
 --There will be two specific demonstrations of performance I wil be showing that you will likely need for many of your tree objects. The first is summing activity of child objects. This is analagous to a company that has sales in multiple regions. And each regions have subregions and so on down to different locations. The second scenario is finding out if you have a child in the hierarchy, and who your predecessors are in the structure. I will use my simulated data structure to demonstrate each of these scenarios. (Not only with SQL Graph, but the exact same scenarios with each algorithm with varying amounts of data)
 
@@ -130,7 +144,20 @@ BEGIN
           SET @RowCount = @RowCount - 1;
      END;
  END;
+ GO
 
+ ----------------------------------------------------------------------------------------------------------
+ --********************************************************************************************************
+ --Essential Tree Maintenance Code
+ --********************************************************************************************************
+ ----------------------------------------------------------------------------------------------------------
+ 
+ ----------------------------------------------------------------------------------------------------------
+ --*****
+ --Code to Create New Nodes
+ --*****
+ ----------------------------------------------------------------------------------------------------------
+ 
 
 -- In all of the code presented, I will use natural key values so the scripts don’t have to care what the internal implementation is. If building a stored procedure interface for an application, you might let it look up the surrogate keys, but when building an interface where you work WITH it in an ad-hoc manner, natural keys are far easier to code with.
 CREATE OR ALTER PROCEDURE SqlGraph.Company$Insert
@@ -307,6 +334,9 @@ WHERE MATCH(Company<-(ReportsTo)-ParentCompany);
 GO
 
 --Next up, there are few operations that I need to demonstrate how we look at the data in a semi graphical manner. In the following query, I will output the data as a hierarchy, showing the path through the tree (I commented out the Name column, as it is also represented at the last value in the hierarchy:
+
+--the first node in a query will typically not show up in 
+--the output, so we have to include it seperately
 SELECT 0 AS Level, Company.Name AS Hierarchy --,Company.Name
 FROM  SqlGraph.Company
 WHERE  RootNodeFlag = 1
@@ -323,9 +353,9 @@ SELECT    COUNT(ReportsToCompany.CompanyId)
 FROM    SqlGraph.Company AS Company, 
         SqlGraph.ReportsTo FOR PATH AS ReportsTo,
         SqlGraph.Company FOR PATH AS ReportsToCompany
-WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
-  AND Company.RootNodeFlag = 1
-GO
+WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)
+                                     ->ReportsToCompany)+))
+ AND  Company.RootNodeFlag = 1;
 
 --Using this output (plus including the Name column), I will make that a CTE and then use the level column to indent each item, and the Hierarchy column to sort by:
 WITH BaseRows AS
@@ -381,6 +411,12 @@ WHERE MATCH(SHORTEST_PATH(Company(-(ReportsTo)->ReportsToCompany)+))
 SELECT CompanyId, REPLICATE('--> ',Level) + Name AS HierarchyDisplay, Level, Name,Hierarchy
 FROM   BaseRows;
 GO
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Reparenting Nodes
+--*****
+----------------------------------------------------------------------------------------------------------
 
 
 --The following code implements the reparent operation (You would need to make sure and copy any attribute values if you have attributes in your edge object.):
@@ -456,6 +492,12 @@ FROM SqlGraph.CompanyHierarchyDisplay
 ORDER BY hierarchy
 GO
 
+----------------------------------------------------------------------------------------------------------
+--*****
+--Deleting a Node
+--*****
+----------------------------------------------------------------------------------------------------------
+
 --deletes
 --These possibilities are implemented with three parameters. The name of the node to delete, one to say if you should attempt to delete the child nodes, and one to reparent any child nodes that exist. This code is very long, but it is commented to explain how the delete operations are being done.
 CREATE OR ALTER PROCEDURE SqlGraph.Company$Delete
@@ -528,8 +570,7 @@ BEGIN
         SELECT $to_id AS ToId
         INTO   #reparentThese
         FROM   SqlGraph.ReportsTo
-
-    WHERE  $from_id = (SELECT $node_Id
+		WHERE  $from_id = (SELECT $node_Id
                        FROM  SqlGraph.Company
                        WHERE  Name = @Name)
 
@@ -657,7 +698,11 @@ GO
 EXEC SqlGraph.Company$Delete @Name = 'Texas HQ', 
                 @ReparentChildNodesToParentFlag = 1;
 GO
-
+--Now, look at the nodes in the tree:
+SELECT HierarchyDisplay
+FROM SqlGraph.CompanyHierarchyDisplay
+ORDER BY hierarchy;
+GO
 --Finally, clean up the nodes that are left over from this example:
 
 EXEC SqlGraph.Company$Delete @Name = 'Dallas Branch'
@@ -669,6 +714,19 @@ SELECT HierarchyDisplay
 FROM SqlGraph.CompanyHierarchyDisplay
 ORDER BY hierarchy;
 GO
+
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Tree Output Code
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Returning Part of the Tree
+--*****
+----------------------------------------------------------------------------------------------------------
+
 
 
 CREATE OR ALTER FUNCTION SqlGraph.Company$ReturnHierarchy
@@ -734,8 +792,15 @@ END;
 GO
 
 SELECT *
-FROM   SqlGraph.Company$ReturnHierarchy('Tennessee HQ' )
+FROM   SqlGraph.Company$ReturnHierarchy('Tennessee HQ' );
 GO
+
+
+----------------------------------------------------------------------------------------------------------
+--*****
+--Determine if a childe node exists
+--*****
+----------------------------------------------------------------------------------------------------------
 
 
 CREATE OR ALTER FUNCTION SqlGraph.Company$CheckForChild
@@ -799,7 +864,11 @@ SELECT (CASE SqlGraph.Company$CheckForChild('Camden Branch','Company HQ')
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Camden_to_Tennessee
 GO
 
-
+----------------------------------------------------------------------------------------------------------
+--*****
+--Aggregating child activity at every level
+--*****
+----------------------------------------------------------------------------------------------------------
 
 
 CREATE OR ALTER PROCEDURE SqlGraph.Company$ReportSales
@@ -876,7 +945,7 @@ ORDER BY Aggregations.hierarchy
 END;
 GO
 
-
+EXECUTE SqlGraph.Company$ReportSales 'Company HQ';
 
 
 --First we have the expanded hierarchy. The first part of this is every node in the tree, related to itself:
@@ -927,13 +996,14 @@ AS (
         SqlGraph.Company AS ToCompany
    WHERE ExpandedHierarchy.ChildCompanyId = FromCompany.CompanyId
          AND MATCH(FromCompany-(ReportsTo)->ToCompany)
-		 
 )
 SELECT *
 FROM   ExpandedHierarchy
---don't return the rows from the first query
+--don't return the rows from the first query JUST for this
+--example explanation only
 WHERE ExpandedHierarchy.ParentCompanyId <> ExpandedHierarchy.ChildCompanyId
 ORDER BY ParentCompanyId;
+
 /*
 This returns:
 ParentCompanyId ChildCompanyId

@@ -1,19 +1,4 @@
---In this chapter, I want to show one of the more prominent (and straightforward) DAG (directed acyclic graph) examples. A bill of materials (or I will shorten to BOM when it gets repetitive). A bill of materials represents a product breakdown. Using it, you can determine what parts make up other parts. The example I will use is a simple shelf system you might purchas from your favorite meatball restaurant. (The referenc is meaningless to the example, but if you know you know.) What looks like a huge solid shelf will actually come in about 1000 pieces. Some of those pieces will be used in multiple parts of the shelves. Screws and dowels are easy examples, but go a bit higher and you may see repetition in things like shelves. 
 
---For our example I am going A shelf might be included multiple times, with the same parts. On the instructions you may see 3X on a sheet. In Figure 7-1, I have sketched out the tree representation of what I am calling the "Shelvii". Note that there are some duplications in the structure, as the 2 - Small Screw Pack (the 2 is to replicate the number you see printed on the items, just like all my identifier values...Of course, those identifiers are not key values for the overall system because not every shelf system would actually need it, so other things might be labeled 1 for the Tablii system. Good thing I am not actually in charge of product naming.) THere is also a B-Flat Shelf that is repeated for the main system, and the shelf set. (I may draw this) The idea is that the same flat shelf is used for the top and the bottom, but just doesn't include the same shelf enhancer, so it is stand alone.
-
---Without turning this into a completely modular furniture design article, I wanted to include an example of such a common structure because there are a few things you will almost certainly want to do with this data that is unlike a tree. In a BOM a node can as many to/parent relationships as you want because the we are in the end we probably are not going to create this system like a tree such as this. But rather as a DAG like you can see in Figure 7-2. Note too I am going to completely ignore packaging in this discussion as well. Only the parts that make up the shelf will be included, and I will ignore details like if the part can be sold individually,too. 
-
---Both the Shelvii node and the A-Shelf Set node are parents to the 2-Small Screw Pack nodes. This would tell the person fetching these items to fetch 2 of the 2-Small Screw Pack bags and put into the box. And most likely (I am not in manufacturing, admittedly), but what I see occurring is that there would be processes set up to create each of the nodes. So there probably are bins of Shelf Enhancers, Flat Shelves, Small Screpes, Wooden Dowels and Shelvii Sides. Proceed up the list, and there are processes to create a Shelf Set, Small Screw Pack, Wooden Dowel Pack. Some of these packs may be used in different shelves, some not. If one system needed 20 small screws and another 2, then there would be more than 1 Small Screw Pack size. For sake of brevity, give me a modicum of leeway in my example to keep it simple. 
-
---Lastly, to finish up the setup, we need magnitudes. In Figure 7-3, I am going to add the number of each item needed per shelf system.
-
---In this chapter, I am going to include the typical stuff for an example. Structures and queries to build the node and edge table. I will keep it to just the necessary data needed to represent the DAG. So just name, letter, and magnitude, but no type, size, etc. Code to load in the graph I have designed.
-
---Then I will implement several of the types of queries you might do with a bill of materials.
---1. Determining if a part is used in a build
---2. Picking items for a build
---3. Printing and summing out the parts list for a build
 
 
 Use BillOfMaterialsExample;
@@ -21,11 +6,12 @@ GO
 
 DROP TABLE IF EXISTS PartsSystem.Includes;
 DROP TABLE IF EXISTS PartsSystem.Part;
-DROP SCHEMA PartsSystem;
+DROP SCHEMA IF EXISTS PartsSystem;
 GO
 
 CREATE SCHEMA PartsSystem;
 GO
+
 
 CREATE TABLE PartsSystem.Part(
 	PartId	int NOT NULL IDENTITY
@@ -43,6 +29,7 @@ CREATE TABLE PartsSystem.Includes
 ) AS EDGE;
 GO
 
+--our main condition is no cycles. This basic trigger will check for that.
 CREATE TRIGGER PartsSystem.Includes$InsertUpdateTrigger
 ON PartsSystem.Includes
 AFTER INSERT, UPDATE
@@ -76,6 +63,7 @@ AS
  END;
  GO
 
+ --standard interface view parts to make the queries simple
  IF NOT EXISTS (SELECT * FROM sys.schemas WHERE schemas.Name = 'PartsSystem_UI')
 EXECUTE ('CREATE SCHEMA PartsSystem_UI')
 GO
@@ -126,7 +114,7 @@ SET NOCOUNT ON
 GO
 
 CREATE OR ALTER TRIGGER PartsSystem_UI.Item_Includes_Item$InsteadOfDeleteTrigger
-ON PartsSystem_UI.Item_Includes_Item
+ON PartsSystem_UI.Part_Includes_Part
 INSTEAD OF DELETE
 AS
 SET NOCOUNT ON

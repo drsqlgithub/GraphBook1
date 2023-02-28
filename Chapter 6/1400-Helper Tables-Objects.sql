@@ -22,21 +22,22 @@ CREATE TABLE Helper.CompanyHierarchyHelper
     ChildCompanyId     int,
     Distance           int,
     ParentRootNodeFlag bit 
-	   CONSTRAINT DFLTCompanyHierarchyHelper_ParentRootNodeFlag DEFAULT 0,
+         CONSTRAINT DFLTCompanyHierarchyHelper_ParentRootNodeFlag 
+                                                       DEFAULT 0,
     ChildLeafNodeFlag  bit 
-	   CONSTRAINT DFLTCompanyHierarchyHelper_ChildLeafNodeFlag DEFAULT 0,
-
+         CONSTRAINT DFLTCompanyHierarchyHelper_ChildLeafNodeFlag 
+                                                       DEFAULT 0,
+    --The primary key is from parent to child.
     CONSTRAINT PKCompanyHierarchyHelper PRIMARY KEY(
         ParentCompanyId,
         ChildCompanyId),
-	INDEX ChlldToParent UNIQUE (
-	    ChildCompanyId,
-		ParentCompanyId
+    --this index assists when looking for parent rows.
+    INDEX ChlldToParent UNIQUE (
+          ChildCompanyId,
+          ParentCompanyId
         ),
 );
 GO
-
-
 
 CREATE OR ALTER PROCEDURE Helper.CompanyHierarchyHelper$Rebuild
 AS
@@ -126,11 +127,11 @@ END;
 GO
 
 --We can test out the procedure this way:
-SELECT (CASE Helper.Company$CheckForChild('Node181','Node1') 
+SELECT (CASE Helper.Company$CheckForChild('Camden Branch','Company HQ') 
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Camden_to_Company,
-		(CASE Helper.Company$CheckForChild('Node181','Node84') 
+		(CASE Helper.Company$CheckForChild('Camden Branch','Maine HQ') 
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Camden_to_Maine,
-		(CASE Helper.Company$CheckForChild('Node84','Node181') 
+		(CASE Helper.Company$CheckForChild('Camden Branch','Tennessee HQ') 
 		WHEN 1 THEN 'Yes' ELSE 'No' END) AS Camden_to_Tennessee
 GO
 
@@ -141,12 +142,15 @@ GO
 --very infrequently, this can be a very good tool no matter which version
 --of a tree you use.
 
-CREATE TABLE [Helper].[HierarchyDisplayHelper](
-	CompanyId int NOT NULL CONSTRAINT PKHerarchyDisplayHelper PRIMARY KEY,
-	[HierarchyDisplay] [varchar](8000) NULL,
-	[Level] [int] NOT NULL,
-	[Name] [varchar](20) NOT NULL CONSTRAINT AKHierarchyDisplayHelper UNIQUE,
-	[Hierarchy] [varchar](8000) NOT NULL
+CREATE TABLE Helper.HierarchyDisplayHelper(
+     --one row per company
+     CompanyId int NOT NULL 
+           CONSTRAINT PKHerarchyDisplayHelper PRIMARY KEY,
+      HierarchyDisplay varchar(8000) NULL,
+      Level int NOT NULL,
+      Name varchar(20) NOT NULL 
+           CONSTRAINT AKHierarchyDisplayHelper UNIQUE,
+      Hierarchy varchar(8000) NOT NULL
 ) ON [PRIMARY]
 GO
 
@@ -155,48 +159,54 @@ GO
 CREATE PROCEDURE Helper.HierarchyDisplayHelper$Rebuild
 AS 
 BEGIN
-	TRUNCATE TABLE [Helper].[HierarchyDisplayHelper];
+    TRUNCATE TABLE [Helper].[HierarchyDisplayHelper];
 
-	insert into Helper.HierarchyDisplayHelper(CompanyId, HierarchyDisplay, Level, Name, Hierarchy)
-	select CompanyId, HierarchyDisplay, Level, Name, Hierarchy
-	from   SqlGraph.CompanyHierarchyDisplay
-	OPTION(MAXDOP 1);
+    INSERT INTO Helper.HierarchyDisplayHelper
+          (CompanyId, HierarchyDisplay, Level, Name, Hierarchy)
+    SELECT CompanyId, HierarchyDisplay, Level, Name, Hierarchy
+    FROM   SqlGraph.CompanyHierarchyDisplay
+    OPTION(MAXDOP 1); --when queries get complex, it is often
+                     --better to use single threaded processing
+                     --with sql graph
 END;
+
 
 GO
 CREATE OR ALTER PROCEDURE Helper.Company$ReportSales
-(
-	@DisplayFromNodeName VARCHAR(20) 
-)
+    @DisplayFromNodeName VARCHAR(20) 
 AS
 BEGIN
 
 --fetch the hierarchy for the node you are looking for by name
-declare @NodeHierarchy varchar(8000) = (select hierarchy 
-						  from Helper.HierarchyDisplayHelper
-						  where Name = @DisplayFromNodeName);
-
+--we will use this just like using the path method ojbect
+DECLARE @NodeHierarchy varchar(8000) = (
+                              SELECT Hierarchy 
+                              FROM Helper.HierarchyDisplayHelper
+                              WHERE Name = @DisplayFromNodeName);
 
 --expanded hierarchy is now a table
 --as is the display version. 
 WITH FilterAndSweeten AS 
 (
-	SELECT ExpandedHierarchy.*, 
-             HierarchyDisplayHelper.Hierarchy,
-			HierarchyDisplayHelper.HierarchyDisplay,
-			HierarchyDisplayHelper.Name
-	from  Helper.CompanyHierarchyHelper AS ExpandedHierarchy
-	JOIN Helper.HierarchyDisplayHelper
-		on ExpandedHierarchy.ParentCompanyId = HierarchyDisplayHelper.CompanyId
-	--filters the search to start iwth the path we sent in
-	--the stuff after + makes sure the filter gets everything like the 
-	--node we fetched, as long as it doesn't have a following digit. 
-	WHERE  HierarchyDisplayHelper.Hierarchy like @NodeHierarchy + '[^0-9]%' 
+     SELECT ExpandedHierarchy.*, 
+            HierarchyDisplayHelper.Hierarchy,
+            HierarchyDisplayHelper.HierarchyDisplay
+     FROM  Helper.CompanyHierarchyHelper AS ExpandedHierarchy
+          JOIN Helper.HierarchyDisplayHelper
+               ON ExpandedHierarchy.ParentCompanyId = 
+                                HierarchyDisplayHelper.CompanyId
+
+     --filters the search to start with the path we sent in
+     --the stuff after + makes sure the filter gets everything 
+     --like the node we fetched, as long as it doesn't have a 
+     --following digit. 
+	WHERE  HierarchyDisplayHelper.Hierarchy 
+                            LIKE @NodeHierarchy + '[^0-9]%' 
 	  --include the root of the query, not character.
-	  or   HierarchyDisplayHelper.Hierarchy = @NodeHierarchy 
+	  OR   HierarchyDisplayHelper.Hierarchy = @NodeHierarchy 
 )
 ,--get totals for each Company for the aggregate
-     CompanyTotals
+  CompanyTotals
 AS (SELECT CompanyId,
            SUM(cast(Amount as decimal(20,2))) AS TotalAmount
     FROM SqlGraph.Sale
@@ -206,9 +216,8 @@ AS (SELECT CompanyId,
    Aggregations AS 
    (SELECT FilterAndSweeten.ParentCompanyId,
            SUM(CompanyTotals.TotalAmount) AS TotalSalesAmount,
-           MAX(hierarchy) AS hierarchy,
-		   MAX(hierarchyDisplay) AS hierarchyDisplay,
-		   MAX(Name) as Name
+           MAX(Hierarchy) AS hierarchy,
+           MAX(HierarchyDisplay) AS HierarchyDisplay
     FROM FilterAndSweeten
         JOIN CompanyTotals
             ON CompanyTotals.CompanyId = 
@@ -217,19 +226,15 @@ AS (SELECT CompanyId,
 
 --display the data...
 SELECT Aggregations.ParentCompanyId,
-	   Aggregations.Name,
-       Aggregations.TotalSalesAmount,
-	   Aggregations.hierarchyDisplay
-
-	   
+	   Aggregations.hierarchyDisplay,
+       Aggregations.TotalSalesAmount
 FROM Aggregations
 ORDER BY Aggregations.hierarchy
 END;
-GO
 
 EXEC Helper.HierarchyDisplayHelper$Rebuild;
 EXEC Helper.CompanyHierarchyHelper$Rebuild;
 GO
 
 
-
+EXECUTE Helper.Company$ReportSales 'Company HQ';

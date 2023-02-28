@@ -1,6 +1,16 @@
 USE BillOfMaterialsExample;
 GO
---1. Determining if a part is used in a build. 
+
+SELECT * 
+FROM   PartsSystem_UI.Part_Includes_Part;
+GO
+
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Determining if a part is used in a build. 
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
 
 --This is easy to do using a SHORTEST_PATH query. Since all we are trying to do is see what parts are used, we only need them to show up once in the list. So we a
 
@@ -94,12 +104,18 @@ Flat Shelf          Flat Shelf
 Shelf Enchancer     Shelf Enchancer
 Small Screw         Small Screw Pack->Small Screw
 
-2 - Picking items for a build
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Picking items for a build
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
+
 
 Ok, so say you are the people assembling these packages. You would be given some number of packages to build, and somewhere there would be a picklist (which tells the user what to go pick from the shelves.
 
 This is actually quite simple, because you need only go one level down the tree to get the data to output. So if you are grabbing the parts for a Shelvii, you just need to go fetch:
 */
+
 SELECT IncludesPart.PartName, IncludesPart.PartName, Includes.IncludeCount
 FROM   PartsSystem.Part AS Part,
        PartsSystem.Includes AS Includes,
@@ -109,14 +125,25 @@ WHERE  Part.PartName = 'Shelvii'
 /*
 This returns:
 
-PartName                PartName    IncludeCount
------------------------ ------------------- ------------
-Shelvii Shelf Enhancer  Shelf Enchancer     2
-10x10x2 Shelf           Flat Shelf          1
-3.2R Small Screw Pack   Small Screw Pack    3
+PartName                       PartName                       IncludeCount
+------------------------------ ------------------------------ ------------
+Shelf Set                      Shelf Set                      3
+Flat Shelf                     Flat Shelf                     2
+Small Wooden Dowel Pack        Small Wooden Dowel Pack        5
+Shelvii Side                   Shelvii Side                   2
+Small Screw Pack               Small Screw Pack               2
 
 So you go grab the pieces you need, and put them in the packaging. The same had previously been done for the Small Screw Pack:
 */
+SELECT IncludesPart.PartName, Includes.IncludeCount
+FROM   PartsSystem.Part AS Part,
+       PartsSystem.Includes AS Includes,
+       PartsSystem.Part AS IncludesPart
+WHERE  Part.PartName = 'Small Screw Pack'
+    AND MATCH(Part-(Includes)->IncludesPart);
+
+
+
 SELECT IncludesPart.PartName, Includes.IncludeCount
 FROM   PartsSystem.Part AS Part,
        PartsSystem.Includes AS Includes,
@@ -130,11 +157,16 @@ PartName               AssemblyPartName      IncludeCount
 
 So the person went and fetched the list and packaged them up for all of the companies product uses of the generic 3.2R Small Screw Pack. Of course it would include a count and a bin number and plenty more detail, but the basics are there. 
 
-3- Printing out the parts list for a build
+----------------------------------------------------------------------------------------------------------
+--********************************************************************************************************
+--Printing out the parts list for a build
+--********************************************************************************************************
+----------------------------------------------------------------------------------------------------------
 
 Here is where we get into trouble with the base syntax. SHORTEST_PATH fails us because it only gives us a single path from root (of the subgraph or graph) to the child. So if you wanted to print out the list of things you needed for the entire build, you are going to have to use a different method. As shown in Chapter 3, you can sum values in your SHORTEST_PATH queries, but you will lose item counts when there are 2 or more paths to the same node.
 The solution is that we need to implement our own breadth-first search, basically taking the same approach as picking items for a build, but then using the output of one level to pick items for the next level. 
 To do this we will use a recursive CTE.
+
 */
 
 WITH BaseRows
@@ -232,19 +264,19 @@ GO
 /*
 Now the output looks like this:
 
-PartName                IncludeCount Path
------------------------ ------------ ------------------------------------------------------------
-10x10x2 Shelf           2             > 10x10x2 Shelf
-10x10x2 Shelf           3             > Shelvii Shelf Set > 10x10x2 Shelf
-3.2R Screw              27            > Shelvii Shelf Set > 3.2R Small Screw Pack > 3.2R Screw
-3.2R Screw              6             > 3.2R Small Screw Pack > 3.2R Screw
-3.2R Small Screw Pack   2             > 3.2R Small Screw Pack
-3.2R Small Screw Pack   9             > Shelvii Shelf Set > 3.2R Small Screw Pack
-Shelvii Shelf Enhancer  6             > Shelvii Shelf Set > Shelvii Shelf Enhancer
-Shelvii Shelf Set       3             > Shelvii Shelf Set
-Shelvii Side Shelf      2             > Shelvii Side Shelf
-Small Wooden Dowl Pack  5             > Small Wooden Dowl Pack
-Wooden Dowl             15            > Small Wooden Dowl Pack > Wooden Dowl
+PartName                       IncCt       Path
+------------------------------ ----------- ------------------------------------------------
+Flat Shelf                     2            > Flat Shelf
+Flat Shelf                     3            > Shelf Set > Flat Shelf
+Shelf Set                      3            > Shelf Set
+Shelvii Shelf Enhancer         6            > Shelf Set > Shelvii Shelf Enhancer
+Shelvii Side                   2            > Shelvii Side
+Small Screw                    6            > Small Screw Pack > Small Screw
+Small Screw                    27           > Shelf Set > Small Screw Pack > Small Screw
+Small Screw Pack               9            > Shelf Set > Small Screw Pack
+Small Screw Pack               2            > Small Screw Pack
+Small Wooden Dowel Pack        5            > Small Wooden Dowel Pack
+Wooden Dowel                   15           > Small Wooden Dowel Pack > Wooden Dowel
 
 Thinking of the sheves, we needed 2 for the top and bottom, 3 for the inside shelves. For the screws we needed. (3 * 3 * 3) and (3 * 2) which you can see is in fact 27 and 6. Finally, we aggregate and filter out the non-leaf nodes.
 

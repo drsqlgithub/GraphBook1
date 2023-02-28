@@ -54,7 +54,7 @@ In the next query though, I want to explore that question of filtering your quer
 
 ----------------------------------------------------------------------------------------------------------
 --*****
---Finding a specific decendent by saving off ALL decendents, filtering rows using a CTE
+--Seeing if one node follows another
 --*****
 ----------------------------------------------------------------------------------------------------------
 
@@ -65,19 +65,25 @@ The most typical way is to use a CTE to represent all connectons to the account,
 --2 in test rig
 WITH BaseRows AS (
 SELECT Account1.AccountHandle + '->' + 
-       STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
-       LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL
+       STRING_AGG(Account2.AccountHandle, '->') 
+          WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
+       LAST_VALUE(Account2.AccountHandle) 
+          WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
+	   COUNT(Account2.AccountHandle) 
+          WITHIN GROUP (GRAPH PATH) AS Level
 FROM   SocialGraph.Account AS Account1
-                   ,SocialGraph.Account FOR PATH AS Account2
-                   ,SocialGraph.Follows FOR PATH AS Follows
+       ,SocialGraph.Account FOR PATH AS Account2
+       ,SocialGraph.Follows FOR PATH AS Follows
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+))
+  --starting point
   AND  Account1.AccountHandle = '@Cassandra_Villegas'
 )
 SELECT *
 FROM   BaseRows
+       --is the starting point connected to:
 WHERE  ConnectedToAccountHandle = '@Lynn_Escobar'
 OPTION (MAXDOP 1);
+
 /*
 This returns:
 
@@ -100,7 +106,7 @@ DROP TABLE IF EXISTS #Hold
 SELECT Account1.AccountHandle + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS LEVEL
+	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS Level
 INTO #hold
 FROM   SocialGraph.Account AS Account1
                    ,SocialGraph.Account FOR PATH AS Account2
@@ -159,9 +165,11 @@ We can write the following query, filtering for the one account we want to see h
 
 --Getting the same results as the last example
 --5 in test rig
+
 DECLARE @MaxLevel INT =5,
 		@AccountHandle NVARCHAR(30) = '@Cassandra_Villegas',
-		@DetermineHowConnected NVARCHAR(30) = '@Lynn_Escobar';
+		@DetermineHowConnected NVARCHAR(30) = 
+                                             '@Lynn_Escobar';
 
 WITH BaseRows
 AS (
@@ -169,36 +177,41 @@ AS (
     SELECT Account.AccountHandle AS AccountHandle,
            Account.AccountHandle AS FollowsAccountHandle,
 
-	   --the path that contains the readable path we have 
+         --the path that contains the readable path we have 
          --built in all examples with the anchor included
-           CAST('\' + Account.AccountHandle + '\' AS NVARCHAR(4000)) AS Path, 
+           CAST('\' + Account.AccountHandle + '\' 
+                                      AS NVARCHAR(4000)) AS Path, 
            0 AS level --the level
     FROM SocialGraph.Account
     WHERE Account.AccountHandle = @AccountHandle
-	UNION ALL
-	--pretty typical 1 level graph query:
-	SELECT  Account.AccountHandle,
-	        FollowedAccount.AccountHandle AS FollowsAccountHandle,
-	        BaseRows.Path + FollowedAccount.AccountHandle + '\',
-	        BaseRows.level + 1
-	FROM SocialGraph.Account,
-	        SocialGraph.Follows,
-	        SocialGraph.Account AS FollowedAccount,
-	        BaseRows
-	WHERE MATCH(Account-(Follows)->FollowedAccount)
-	    --this joins the anchor to the recursive part of the query
-	    AND BaseRows.FollowsAccountHandle = Account.AccountHandle
-	--this is the part that stops recursion, treating the
-	    --string value like an array
-	    AND NOT BaseRows.Path LIKE CONCAT('%\', 
-	                                 FollowedAccount.AccountHandle, '\%')
-	            AND BaseRows.level < @MaxLevel
-	)
+    UNION ALL
+    --pretty typical 1 level graph query:
+    SELECT  Account.AccountHandle,
+            FollowedAccount.AccountHandle 
+                          AS FollowsAccountHandle,
+            BaseRows.Path + FollowedAccount.AccountHandle + '\',
+            BaseRows.level + 1
+    FROM SocialGraph.Account,
+            SocialGraph.Follows,
+            SocialGraph.Account AS FollowedAccount,
+            BaseRows
+    WHERE MATCH(Account-(Follows)->FollowedAccount)
+        --this joins the anchor to the recursive 
+          --part of the query
+        AND BaseRows.FollowsAccountHandle = 
+                                    Account.AccountHandle
+    --this is the part that stops recursion, treating the
+        --string value like an array
+        AND NOT BaseRows.Path LIKE CONCAT('%\', 
+                            FollowedAccount.AccountHandle, '\%')
+                AND BaseRows.level < @MaxLevel
+    )
 
 SELECT Path --for space reasons only
 FROM BaseRows
 WHERE FollowsAccountHandle = @DetermineHowConnected
 ORDER BY Path;
+
 /*
 This returns:
 
@@ -218,6 +231,54 @@ AND Path like '_%\@Tonia_Mueller\%_'
 To get only paths that pass through @Tonia_Mueller.
 */
 
+DECLARE @MaxLevel INT =5,
+		@AccountHandle NVARCHAR(30) = '@Cassandra_Villegas',
+		@DetermineHowConnected NVARCHAR(30) = 
+                                             '@Lynn_Escobar';
+
+WITH BaseRows
+AS (
+    --the CTE anchor is just the starting node
+    SELECT Account.AccountHandle AS AccountHandle,
+           Account.AccountHandle AS FollowsAccountHandle,
+
+         --the path that contains the readable path we have 
+         --built in all examples with the anchor included
+           CAST('\' + Account.AccountHandle + '\' 
+                                      AS NVARCHAR(4000)) AS Path, 
+           0 AS level --the level
+    FROM SocialGraph.Account
+    WHERE Account.AccountHandle = @AccountHandle
+    UNION ALL
+    --pretty typical 1 level graph query:
+    SELECT  Account.AccountHandle,
+            FollowedAccount.AccountHandle 
+                          AS FollowsAccountHandle,
+            BaseRows.Path + FollowedAccount.AccountHandle + '\',
+            BaseRows.level + 1
+    FROM SocialGraph.Account,
+            SocialGraph.Follows,
+            SocialGraph.Account AS FollowedAccount,
+            BaseRows
+    WHERE MATCH(Account-(Follows)->FollowedAccount)
+        --this joins the anchor to the recursive 
+          --part of the query
+        AND BaseRows.FollowsAccountHandle = 
+                                    Account.AccountHandle
+    --this is the part that stops recursion, treating the
+        --string value like an array
+        AND NOT BaseRows.Path LIKE CONCAT('%\', 
+                            FollowedAccount.AccountHandle, '\%')
+                AND BaseRows.level < @MaxLevel
+    )
+
+SELECT Path --for space reasons only
+FROM BaseRows
+WHERE FollowsAccountHandle = @DetermineHowConnected
+AND Path like '_%\@Tonia_Mueller\%_' --<-- added just this, now we see only paths including @Tonia_Mueller
+ORDER BY Path;
+
+
 ----------------------------------------------------------------------------------------------------------
 --*****
 --Finding all people that a user follows at any level, where they share a interest.
@@ -227,6 +288,7 @@ To get only paths that pass through @Tonia_Mueller.
 /*
 Where the graph syntax start to shine is finding even more connections. In this case, I want to find users connected to each other at any level that have an interest in Aircraft Spotting (Cassandra does not currently have this interest noted, but it doesn't matter if they did).  We are taking the last node in the chain, and then matching their nodes to their interests.
 */
+
 --6 in test rig
 ----any level connection and connections have a specific interest
 SELECT Account1.AccountHandle + '->' + 
@@ -253,6 +315,7 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
 ORDER BY ConnectedPath
 OPTION (MAXDOP 1);
 
+
 /*
 This returns (including only the path for space reasons):
 
@@ -262,11 +325,6 @@ ConnectedPath                                          ConnectedToAccountHandle 
 @Cassandra_Villegas->@Tonia_Mueller->@Lynn_Escobar     @Lynn_Escobar                  2           Aircraft Spotting
 @Cassandra_Villegas->@Willie_Charles                   @Willie_Charles                1           Aircraft Spotting
 
-ConnectedPath                                          
--------------------------------------------------------
-@Cassandra_Villegas->@Tonia_Mueller                    
-@Cassandra_Villegas->@Tonia_Mueller->@Lynn_Escobar     
-@Cassandra_Villegas->@Willie_Charles                   
 
 
 Trace the connections on Figure 8-2, and you will see These 3 people share an afinity for Aircraft Spotting and are all followed by @Cassandra_Villegas.
@@ -320,24 +378,23 @@ ORDER BY ConnectedPath
 WITH BaseRows AS (
 SELECT Account1.AccountHandle + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') 
-	       WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
+           WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
        LAST_VALUE(Account2.AccountHandle) 
-	       WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) 
-	       WITHIN GROUP (GRAPH PATH) AS LEVEL,
-	   Interest.InterestName AS InterestName
+           WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
+       COUNT(Account2.AccountHandle) 
+           WITHIN GROUP (GRAPH PATH) AS LEVEL,
+       Interest.InterestName AS InterestName
 FROM   SocialGraph.Account AS Account1
-                   ,SocialGraph.Account FOR PATH AS Account2
-                   ,SocialGraph.Follows FOR PATH AS Follows
-				   ,SocialGraph.InterestedIn
-				   ,SocialGraph.InterestedIn AS InterestedIn2
-				   ,SocialGraph.Interest
+       ,SocialGraph.Account FOR PATH AS Account2
+       ,SocialGraph.Follows FOR PATH AS Follows
+       ,SocialGraph.InterestedIn
+       ,SocialGraph.InterestedIn AS InterestedIn2
+       ,SocialGraph.Interest
 WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) 
   --Both Accounts interested in the same thing
   AND LAST_NODE(Account2)-(InterestedIn)->Interest
                        <-(InterestedIn2)-Account1)
   AND  Account1.AccountHandle = '@Cassandra_Villegas'
-
 )
 SELECT InterestName, ConnectedPath
 FROM   BaseRows
@@ -355,6 +412,40 @@ Which if you check the diagram in Figure 8-1, you can see that they do in fact s
 
 */
 
+ WITH BaseRows AS (
+SELECT Account1.AccountHandle + '->' + 
+       STRING_AGG(Account2.AccountHandle, '->') 
+           WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
+       LAST_VALUE(Account2.AccountHandle) 
+           WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
+       COUNT(Account2.AccountHandle) 
+           WITHIN GROUP (GRAPH PATH) AS LEVEL,
+       Interest.InterestName AS InterestName
+FROM   SocialGraph.Account AS Account1
+       ,SocialGraph.Account FOR PATH AS Account2
+       ,SocialGraph.Follows FOR PATH AS Follows
+       ,SocialGraph.InterestedIn
+       ,SocialGraph.InterestedIn AS InterestedIn2
+       ,SocialGraph.Interest
+WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+) 
+  --Both Accounts interested in the same thing
+  AND LAST_NODE(Account2)-(InterestedIn)->Interest
+                       <-(InterestedIn2)-Account1)
+  AND  Account1.AccountHandle = '@Cassandra_Villegas'
+  ANd  Interest.InterestName =  'Airsofting'
+)
+SELECT InterestName, ConnectedPath
+FROM   BaseRows
+WHERE  ConnectedToAccountHandle = '@Tonia_Mueller'
+ORDER BY ConnectedPath
+OPTION (MAXDOP 1);
+
+
+
+ ----------------------------------------------------------------------------------------------------------
+ --
+ ----------------------------------------------------------------------------------------------------------
+ 
 --9 Query to get only 
 SELECT Account1.AccountHandle + '->' + 
        STRING_AGG(Account2.AccountHandle, '->') WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
@@ -373,11 +464,20 @@ WHERE  MATCH(SHORTEST_PATH(Account1(-(Follows)->Account2)+)
   ANd  Interest.InterestName =  'Airsofting'
  OPTION (MAXDOP 1);
 
-
-
-
-
-
+ SELECT Account1.AccountHandle,
+       Interest.InterestName,
+       Account2.AccountHandle
+FROM   SocialGraph.Account AS Account1
+       ,SocialGraph.Account AS Account2
+       ,SocialGraph.InterestedIn AS InterestedIn1
+       ,SocialGraph.InterestedIn  AS InterestedIn2
+       ,SocialGraph.Interest AS Interest
+WHERE  MATCH(Account1-(InterestedIn1)->Interest
+                                  <-(InterestedIn2)-Account2)
+  AND  Account1.AccountHandle = '@Cassandra_Villegas'
+  AND  Account1.AccountHandle <> Account2.AccountHandle 
+  AND  Interest.InterestName = 'Airsofting'
+OPTION (MAXDOP 1);
 
 
 ----------------------------------------------------------------------------------------------------------
@@ -421,19 +521,25 @@ Casandra connects to Tonia and Willie through a shared interest in Airsofting. B
 SELECT Account1.AccountHandle 
 + '->' + 
        STRING_AGG(CONCAT('(',Interest.InterestName,')->', 
-	               Account2.AccountHandle) , '->') 
-				   WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
-       LAST_VALUE(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
-	   COUNT(Account2.AccountHandle) WITHIN GROUP (GRAPH PATH) AS Level
+                               Account2.AccountHandle) , '->') 
+          WITHIN GROUP (GRAPH PATH) AS ConnectedPath, 
+       LAST_VALUE(Account2.AccountHandle) 
+          WITHIN GROUP (GRAPH PATH) AS ConnectedToAccountHandle,
+       COUNT(Account2.AccountHandle) 
+          WITHIN GROUP (GRAPH PATH) AS Level
 FROM   SocialGraph.Account AS Account1
-                   ,SocialGraph.Account FOR PATH AS Account2
-				   ,SocialGraph.InterestedIn FOR PATH AS InterestedIn1
-				   ,SocialGraph.InterestedIn FOR PATH AS InterestedIn2
-				   ,SocialGraph.Interest FOR PATH AS Interest
-WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest<-(InterestedIn2)-Account2){1,2}))
+       ,SocialGraph.Account FOR PATH AS Account2
+       ,SocialGraph.InterestedIn FOR PATH AS InterestedIn1
+       ,SocialGraph.InterestedIn FOR PATH AS InterestedIn2
+       ,SocialGraph.Interest FOR PATH AS Interest
+       --only fetching 2 levels for testing reasons. This 
+       --is where tests can get bogged down, so keeping it to 
+       --only what you want/need is important
+WHERE  MATCH(SHORTEST_PATH(Account1(-(InterestedIn1)->Interest
+                              <-(InterestedIn2)-Account2){1,2}))
   AND  Account1.AccountHandle = '@Cassandra_Villegas'
 OPTION (MAXDOP 1);
-GO
+
 /*
 This returns the following paths:
 
